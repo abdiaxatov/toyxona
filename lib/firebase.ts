@@ -24,14 +24,25 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 const auth = getAuth(app)
 
-// Initialize Firestore
-let db
+// Initialize Firestore with persistence
+let db;
 if (typeof window !== "undefined") {
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-  })
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
+    try {
+      db = getFirestore(app);
+    } catch (e) {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      });
+    }
+  } else {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
+  }
 } else {
-  db = getFirestore(app)
+  db = getFirestore(app);
 }
 
 const storage = getStorage(app)

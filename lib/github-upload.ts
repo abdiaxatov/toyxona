@@ -6,10 +6,9 @@ interface UploadResult {
 
 export async function uploadToGitHub(file: File, fileName: string, folder = "models"): Promise<UploadResult> {
   try {
-    const token = process.env.NEXT_PUBLIC_GITHUB_TOKEN
-    const owner = process.env.NEXT_PUBLIC_GITHUB_OWNER || "abdiaxatov"
-    const repo = process.env.NEXT_PUBLIC_GITHUB_REPO || "3d_menyu"
-    const branch = "main"
+    const token = (process.env.NEXT_PUBLIC_GITHUB_TOKEN || "").trim()
+    const owner = (process.env.NEXT_PUBLIC_GITHUB_OWNER || "abdiaxatov").trim()
+    const repo = (process.env.NEXT_PUBLIC_GITHUB_REPO || "3d_menyu").trim()
 
     if (!token) {
       return { success: false, error: "GitHub token not configured" }
@@ -34,22 +33,34 @@ export async function uploadToGitHub(file: File, fileName: string, folder = "mod
     const response = await fetch(url, {
       method: "PUT",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `token ${token}`,
         "Content-Type": "application/json",
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
       body: JSON.stringify({
         message: `Add ${folder}: ${fileName}`,
         content: base64Content,
-        branch: branch,
+        // Omit branch to use default branch
       }),
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      return { success: false, error: errorData.message || "Upload failed" }
+      let errorMsg = `Upload failed with status: ${response.status}`
+      try {
+        const errorData = await response.json()
+        console.error("GitHub API error response:", errorData)
+        errorMsg = errorData.message || errorMsg
+      } catch (e) {
+        const errorText = await response.text()
+        console.error("GitHub API error text:", errorText)
+        errorMsg = errorText || errorMsg
+      }
+      return { success: false, error: errorMsg }
     }
 
-    const downloadUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`
+    // Default branch name for the download URL (fallback to main if unknown)
+    const downloadUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${path}`
     return { success: true, url: downloadUrl }
   } catch (error) {
     console.error("GitHub upload error:", error)

@@ -39,6 +39,7 @@ import { CartButton } from "@/components/cart-button";
 import { TelegramUserAccount } from "@/components/telegram-user-account";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { BronTab } from "@/components/bron-tab";
 import {
   Dialog,
   DialogContent,
@@ -59,7 +60,7 @@ import {
 } from "@/components/ui/drawer"
 import { OrderHistory } from "@/components/order-history";
 import { Button } from "@/components/ui/button";
-import { Search, Info, X, Phone, Utensils, History, Send, Instagram, MapPin, Bell, Wifi, Gift, ExternalLink, Images, Play, UserCircle, LayoutGrid } from "lucide-react"
+import { Search, Info, X, Phone, Utensils, History, Send, Instagram, MapPin, Bell, Wifi, Gift, ExternalLink, Images, Play, UserCircle, LayoutGrid, Calendar } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useLenis } from "lenis/react";
 import { CartPage } from "@/components/cart-page";
@@ -101,7 +102,12 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"menu" | "orders" | "prizes" | "gallery" | "account">("menu");
+  const [activeTab, setActiveTab] = useState<"menu" | "orders" | "prizes" | "gallery" | "account" | "bron">("menu");
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   // 🔹 Sync restaurantData state with props on navigation
   useEffect(() => {
@@ -1226,12 +1232,12 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
 
           <div className="flex-1 px-2 py-2 space-y-6">
             <Tabs defaultValue="menu" value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-              {(() => {
+              {isMounted && (() => {
                 const gallery: any[] = restaurantData?.gallery || [];
                 const hasGallery = gallery.length > 0;
                 const hasSpinWheel = !!restaurantData?.enableSpinWheel;
-                const hasOrders = typeof window !== 'undefined' && localStorage.getItem("orders") !== null;
-                const totalTabs = 1 + (hasGallery ? 1 : 0) + (hasSpinWheel ? 1 : 0) + (hasOrders ? 1 : 0) + (effectiveIsTelegramWebApp ? 1 : 0);
+                const hasOrders = localStorage.getItem("orders") !== null;
+                const totalTabs = 1 + (hasGallery ? 1 : 0) + (hasSpinWheel ? 1 : 0) + (hasOrders ? 1 : 0) + 1 + 1; // Menu + Gallery + Spin + Orders + Bron + Account
                 if (totalTabs <= 1) return null;
                 return (
                   <div className="flex gap-1 mb-8 bg-zinc-950/20 dark:bg-black/40 backdrop-blur-2xl p-1.5 rounded-[32px] border border-white/20 dark:border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.1)] relative">
@@ -1319,6 +1325,31 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
                     )}
 
 
+
+                    <button
+                      onClick={() => setActiveTab('bron')}
+                      className={cn(
+                        "flex-1 flex flex-col items-center gap-1 py-3 px-1 rounded-[24px] transition-all duration-500 text-[10px] font-black uppercase tracking-[0.15em] relative z-10 group",
+                        activeTab === 'bron' ? "text-white" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100"
+                      )}
+                    >
+                      {activeTab === 'bron' ? (
+                        <motion.div
+                          layoutId="activeTabPill"
+                          className="absolute inset-0 shadow-[0_8px_25px_-5px_rgba(0,0,0,0.3)] z-[-1] rounded-[22px]"
+                          style={{ 
+                            backgroundColor: primaryColor || '#f43f5e',
+                            boxShadow: `0 10px 30px -10px ${primaryColor || '#f43f5e'}80`
+                          }}
+                          transition={{ type: "spring", bounce: 0.25, duration: 0.6 }}
+                        />
+                      ) : null}
+                      <Calendar className={cn(
+                        "w-4.5 h-4.5 transition-all duration-500", 
+                        activeTab === 'bron' ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]" : "group-hover:scale-110"
+                      )} />
+                      <span className={cn("leading-none transition-all duration-300", activeTab === 'bron' ? "opacity-100" : "opacity-80 group-hover:opacity-100")}>Bron</span>
+                    </button>
 
                     {/* Profile Tab - Always visible now */}
                     <button
@@ -1511,39 +1542,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
                   {(restaurantData?.gallery?.length > 0) && (
                     <TabsContent value="gallery" className="mt-0 pb-32">
                       <div className="space-y-5">
-                          {/* Yandex / Google Map */}
-                        {primaryEmbedUrl && (
-                          <div className="mt-2">
-                            <div className="flex items-center gap-3 mb-3">
-                              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300 whitespace-nowrap flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 text-red-500" />
-                                Manzil
-                              </h2>
-                              <div className="h-[1.5px] w-full rounded-full bg-gradient-to-r from-red-400/40 to-transparent"></div>
-                            </div>
-                            <div className="rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/10 relative">
-                              <iframe
-                                src={primaryEmbedUrl}
-                                width="100%"
-                                height="260"
-                                style={{ border: 0 }}
-                                loading="lazy"
-                                referrerPolicy="no-referrer-when-downgrade"
-                                className="w-full"
-                                allowFullScreen
-                              />
-                              <a
-                                href={primaryOriginalUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="absolute bottom-3 right-3 bg-white/90 dark:bg-black/70 backdrop-blur-sm text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5 text-gray-700 dark:text-white hover:scale-105 transition-transform"
-                              >
-                                <MapPin className="w-3 h-3 text-red-500" />
-                                Yo'l olish
-                              </a>
-                            </div>
-                          </div>
-                        )}
+                        {/* Map removed per user request */}
                         {/* Videos — full width */}
                         {restaurantData.gallery.filter((m: any) => m.type === 'video').map((item: any) => (
                           <div key={item.id} className="rounded-2xl overflow-hidden shadow-lg bg-black ring-1 ring-white/10">
@@ -1640,6 +1639,13 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
                       </div>
                     </TabsContent>
                   )}
+
+                  <TabsContent value="bron" className="mt-0 pb-32">
+                    <BronTab 
+                      restaurantId={restaurantId || "default"} 
+                      primaryColor={primaryColor} 
+                    />
+                  </TabsContent>
 
                   <TabsContent value="orders" className="mt-0">
                     <OrderHistory 

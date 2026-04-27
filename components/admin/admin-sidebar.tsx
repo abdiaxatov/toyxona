@@ -23,7 +23,8 @@ import {
   Users,
   ShoppingCart,
   MessageCircle,
-  Zap
+  Zap,
+  Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -153,6 +154,12 @@ export const AdminSidebar = memo(() => {
       icon: <ShoppingCart />,
       title: "Buyurtmalar",
       roles: ["admin", "waiter"],
+    },
+    {
+      href: "/admin/bookings",
+      icon: <Calendar />,
+      title: "Bron Kalendari",
+      roles: ["admin"],
     },
     {
       href: "/admin/menu",

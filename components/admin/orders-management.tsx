@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
-import { collection, query, onSnapshot, doc, updateDoc, deleteDoc, orderBy, limit, serverTimestamp, where, getDocs, writeBatch, Timestamp } from "firebase/firestore"
+import { collection, query, onSnapshot, doc, updateDoc, deleteDoc, orderBy, limit, serverTimestamp, where, getDocs, writeBatch, Timestamp, setDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useRestaurant } from "@/components/admin/restaurant-provider"
 import { useToast } from "@/components/ui/use-toast"
@@ -37,12 +37,16 @@ interface Order {
   tableNumber?: number
   roomNumber?: number
   seatingType?: string
-  address?: string
-  createdAt: any
   notes?: string
-  latitude?: number
-  longitude?: number
   paymentMethod?: string
+
+  weddingDate?: string
+  guestCount?: number
+  hallDetails?: string
+  createdAt?: any
+  subtotal?: number
+  deliveryFee?: number
+  containerCost?: number
 }
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6']
@@ -61,6 +65,17 @@ export function OrdersManagement() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [autoDeleteRunning, setAutoDeleteRunning] = useState(false)
   const [timePeriod, setTimePeriod] = useState<"today" | "week" | "month" | "year">("today")
+
+  // Sync search from URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const search = params.get("search");
+      if (search) {
+        setSearchQuery(search);
+      }
+    }
+  }, []);
 
   // Load orders
   useEffect(() => {
@@ -118,9 +133,26 @@ export function OrdersManagement() {
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     if (!restaurant?.id) return
     try {
+      const order = orders.find(o => o.id === orderId)
+      
       await updateDoc(doc(db, "restaurants", restaurant.id, "orders", orderId), {
         status: newStatus, updatedAt: serverTimestamp()
       })
+
+      // Auto-mark as busy in calendar if confirmed
+      if (newStatus === "confirmed" && order?.weddingDate) {
+        console.log("Marking date as busy:", order.weddingDate);
+        const busyDateRef = doc(db, "restaurants", restaurant.id, "busy_dates", order.weddingDate)
+        await setDoc(busyDateRef, {
+          date: order.weddingDate,
+          status: "busy",
+          note: `Buyurtma #${orderId.slice(-4).toUpperCase()} (${order.customerName || "Mijoz"})`,
+          orderId: orderId,
+          updatedAt: new Date()
+        }, { merge: true })
+        toast({ title: "Sana band qilindi", description: `${order.weddingDate} sanasi kalendarda band qilindi.` })
+      }
+
       toast({ title: "Muvaffaqiyatli", description: `Holat "${getStatusLabel(newStatus)}" ga o'zgartirildi` })
     } catch {
       toast({ title: "Xatolik", description: "Holatni yangilashda xatolik", variant: "destructive" })
@@ -428,11 +460,9 @@ export function OrdersManagement() {
               <TabsList className="bg-transparent h-auto p-0 flex gap-1.5 overflow-x-auto no-scrollbar">
                 {[
                   { id: "all", label: "Hammasi", count: orders.length },
-                  { id: "pending", label: "Kutilmoqda", count: stats.pendingCount },
+                  { id: "pending", label: "Kutilmoqda", count: orders.filter(o => o.status === "pending").length },
                   { id: "confirmed", label: "Tasdiqlangan", count: orders.filter(o => o.status === "confirmed").length },
-                  { id: "preparing", label: "Tayyorlanmoqda", count: orders.filter(o => o.status === "preparing").length },
-                  { id: "ready", label: "Tayyor", count: orders.filter(o => o.status === "ready").length },
-                  { id: "paid", label: "Yakunlangan", count: stats.completedCount }
+                  { id: "cancelled", label: "Bekor qilingan", count: orders.filter(o => o.status === "cancelled").length },
                 ].map(tab => (
                   <TabsTrigger key={tab.id} value={tab.id}
                     className="h-8 px-3 rounded-full border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:text-primary text-xs font-bold whitespace-nowrap bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
@@ -501,9 +531,9 @@ export function OrdersManagement() {
                               </div>
                             )}
                             <div className="space-y-2">
-                              <h4 className="text-[10px] uppercase tracking-widest font-black text-zinc-400 px-1">Taomlar · {order.items.length}</h4>
+                              <h4 className="text-[10px] uppercase tracking-widest font-black text-zinc-400 px-1">Taomlar · {order.items?.length ?? 0}</h4>
                               <div className="bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border divide-y divide-zinc-100 dark:divide-zinc-700/50">
-                                {order.items.map((item, idx) => (
+                                {(order.items ?? []).map((item, idx) => (
                                   <div key={idx} className="p-2.5 flex justify-between items-center">
                                     <div className="flex items-center gap-2.5">
                                       <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xs font-black">{item.quantity}</div>
@@ -520,7 +550,7 @@ export function OrdersManagement() {
                               <div className="px-1 space-y-1">
                                 <div className="flex justify-between text-[11px] font-bold text-zinc-500 uppercase tracking-tight">
                                   <span>Taomlar:</span>
-                                  <span>{(order.subtotal || order.items.reduce((s, i) => s + (i.price * i.quantity), 0)).toLocaleString("uz-UZ")} so'm</span>
+                                  <span>{(order.subtotal || (order.items ?? []).reduce((s, i) => s + (i.price * i.quantity), 0)).toLocaleString("uz-UZ")} so'm</span>
                                 </div>
                                 {order.containerCost > 0 && (
                                   <div className="flex justify-between text-[11px] font-bold text-zinc-500 uppercase tracking-tight">
@@ -581,24 +611,31 @@ export function OrdersManagement() {
                                   )}
                                 </div>
                               </div>
-                              {order.address && (
-                                <div className="col-span-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <MapPin className="h-3 w-3 text-zinc-400 shrink-0" />
-                                      <span className="text-[9px] font-black text-zinc-400 uppercase truncate">Manzil</span>
+                              {order.weddingDate && (
+                                <div className="col-span-2 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Calendar className="h-4 w-4 text-red-500" />
+                                    <span className="text-sm font-black text-red-700 dark:text-red-400 uppercase tracking-tight">To'y ma'lumotlari</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p className="text-[10px] font-bold text-zinc-400 uppercase">Sana</p>
+                                      <p className="text-sm font-black">{order.weddingDate}</p>
                                     </div>
-                                    {order.latitude && (
-                                      <Button variant="ghost" size="sm" asChild className="h-6 px-2 rounded-lg bg-white border text-[10px] font-bold flex items-center gap-1 hover:bg-zinc-100 shrink-0 transition-transform active:scale-95">
-                                        <a href={`https://www.google.com/maps?q=${order.latitude},${order.longitude}`} target="_blank">
-                                          <Navigation className="h-3 w-3" />MAPS
-                                        </a>
-                                      </Button>
+                                    <div>
+                                      <p className="text-[10px] font-bold text-zinc-400 uppercase">Mehmonlar</p>
+                                      <p className="text-sm font-black">{order.guestCount} kishi</p>
+                                    </div>
+                                    {order.hallDetails && (
+                                      <div className="col-span-2">
+                                        <p className="text-[10px] font-bold text-zinc-400 uppercase">Qo'shimcha ma'lumotlar</p>
+                                        <p className="text-xs font-medium mt-0.5 whitespace-pre-wrap">{order.hallDetails}</p>
+                                      </div>
                                     )}
                                   </div>
-                                  <p className="text-xs font-bold mt-1 line-clamp-2">{order.address}</p>
                                 </div>
                               )}
+
                             </div>
 
                             {/* Actions */}
@@ -610,36 +647,24 @@ export function OrdersManagement() {
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 {order.status === "pending" && (
-                                  <Button onClick={() => handleStatusUpdate(order.id, "confirmed")} className="h-11 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold text-sm col-span-2 shadow-lg shadow-sky-600/20">
+                                  <Button onClick={() => handleStatusUpdate(order.id, "confirmed")} className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm col-span-2 shadow-lg shadow-emerald-600/20">
                                     <CheckCircle2 className="h-4 w-4 mr-1.5" />TASDIQLASH
                                   </Button>
                                 )}
-                                {["pending", "confirmed"].includes(order.status) && (
-                                  <Button variant="outline" onClick={() => handleStatusUpdate(order.id, "preparing")} className="h-11 border-2 border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl font-bold text-sm">
-                                    TAYYORLASH
-                                  </Button>
-                                )}
-                                {order.status === "preparing" && (
-                                  <Button onClick={() => handleStatusUpdate(order.id, "ready")} className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm col-span-2 shadow-lg shadow-indigo-600/20">
-                                    TAYYOR!
-                                  </Button>
-                                )}
-                                {["ready", "confirmed"].includes(order.status) && (
-                                  <Button onClick={() => handleStatusUpdate(order.id, order.orderType === "delivery" ? "delivered" : "paid")} className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-600/20">
-                                    {order.orderType === "delivery" ? "YETKAZILDI" : "TO'LANDI"}
-                                  </Button>
-                                )}
-                                {!["paid", "cancelled"].includes(order.status) && (
+                                
+                                {!["paid", "cancelled", "delivered"].includes(order.status) && (
                                   <Button variant="ghost" onClick={() => handleStatusUpdate(order.id, "cancelled")} className="h-11 text-rose-500 hover:bg-rose-50 font-bold text-sm">
-                                    BEKOR QILISH
+                                    <XCircle className="h-4 w-4 mr-1.5" />BEKOR QILISH
                                   </Button>
                                 )}
+                                
                                 {/* Delete Button */}
                                 <Button variant="ghost" onClick={() => { setOrderToDelete(order.id); setDeleteDialogOpen(true) }}
-                                  className="h-11 text-red-500 hover:bg-red-50 font-bold text-sm col-span-2 border border-red-200/50">
+                                  className={`h-11 text-red-500 hover:bg-red-50 font-bold text-sm border border-red-200/50 ${["paid", "cancelled", "delivered"].includes(order.status) ? "col-span-2" : ""}`}>
                                   <Trash2 className="h-4 w-4 mr-1.5" />O'CHIRISH
                                 </Button>
                               </div>
+
                             </div>
                           </div>
                         </motion.div>

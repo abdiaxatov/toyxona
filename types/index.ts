@@ -110,6 +110,9 @@ export type Order = {
   tableType?: string;
   seatingType?: string;
   floor?: number;
+  weddingDate?: string;
+  guestCount?: number;
+  hallDetails?: string;
 };
 
 export interface User {

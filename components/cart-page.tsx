@@ -156,75 +156,10 @@ export function CartPage({
       )
     }
 
-  const handleGetLocation = async () => {
-    setIsLocating(true)
-    
-    // Check if Telegram WebApp is available
-    if (typeof window !== "undefined" && (window as any).Telegram?.WebApp) {
-      const webApp = (window as any).Telegram.WebApp
-      
-      if (webApp.requestLocation) {
-        webApp.requestLocation(async (res: any) => {
-          if (res.location) {
-            const { latitude, longitude } = res.location
-            setLatitude(latitude)
-            setLongitude(longitude)
-            await reverseGeocode(latitude, longitude)
-          } else {
-            // Fallback to browser geolocation if TG permission denied
-            browserGeolocation()
-          }
-          setIsLocating(false)
-        })
-        return
-      }
-    }
-    
-    // Browser fallback
-    browserGeolocation()
-  }
-
-  const browserGeolocation = () => {
-    if (!navigator.geolocation) {
-      toast({ title: "Xatolik", description: "Geolokatsiya qurilmangizda mavjud emas", variant: "destructive" })
-      setIsLocating(false)
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords
-        setLatitude(latitude)
-        setLongitude(longitude)
-        await reverseGeocode(latitude, longitude)
-        setIsLocating(false)
-      },
-      (err) => {
-        console.error("Geolocation error:", err)
-        toast({ title: "Xatolik", description: "Joylashuvni aniqlash imkoni bo'lmadi", variant: "destructive" })
-        setIsLocating(false)
-      }
-    )
-  }
-
-  const reverseGeocode = async (lat: number, lon: number) => {
-    try {
-      const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`)
-      const data = await resp.json()
-      if (data.display_name) {
-        setAddress(data.display_name)
-      }
-    } catch (e) {
-      console.error("Reverse geocoding error:", e)
-    }
-  }
   const [seatingType, setSeatingType] = useState<string | null>(null)
   const [phoneNumber, setPhoneNumber] = useState("")
   const [customerName, setCustomerName] = useState("")
-  const [address, setAddress] = useState("")
-  const [latitude, setLatitude] = useState<number | null>(null)
-  const [longitude, setLongitude] = useState<number | null>(null)
-  const [isLocating, setIsLocating] = useState(false)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMapOpen, setIsMapOpen] = useState(false)
   const [hasAvailableSeatingItems, setHasAvailableSeatingItems] = useState(true)
@@ -269,8 +204,10 @@ export function CartPage({
     tableOrRoom?: boolean
     phoneNumber?: boolean
     customerName?: boolean
-    address?: boolean
+    weddingDate?: boolean
+    guestCount?: boolean
   }>({})
+
 
   const [waiterId, setWaiterId] = useState<string | null>(null)
   const [waiterName, setWaiterName] = useState<string | null>(null)
@@ -281,6 +218,9 @@ export function CartPage({
   const [paymentMethod, setPaymentMethod] = useState<string>("cash")
   const [notes, setNotes] = useState<string>("")
   const [isUserRecentlyUsed, setIsUserRecentlyUsed] = useState<boolean>(false)
+  const [weddingDate, setWeddingDate] = useState("")
+  const [guestCount, setGuestCount] = useState("")
+  const [hallDetails, setHallDetails] = useState("")
 
   // Initialize device ID on mount
   useEffect(() => {
@@ -797,7 +737,7 @@ export function CartPage({
         seatingType: orderType === "table" ? seatingType : null,
         phoneNumber: phoneNumber || null,
         customerName: customerName || null,
-        address: orderType === "delivery" ? address : null,
+
         items: orderItems,
         subtotal: subtotal,
         paymentMethod: paymentMethod,
@@ -811,9 +751,12 @@ export function CartPage({
         telegramUsername: tm_username || null,
         telegramId: tgId,
         chatId: tgChatId,
-        ...(latitude && longitude ? { latitude, longitude, location: { latitude, longitude } } : {}),
         ...(currentWaiterId ? { waiterId: currentWaiterId } : {}),
+
         ...(currentWaiterName ? { waiterName: currentWaiterName } : {}),
+        weddingDate: weddingDate || null,
+        guestCount: guestCount ? Number(guestCount) : null,
+        hallDetails: hallDetails || null,
       }
 
       const ordersRef = restaurantId ? collection(db, "restaurants", restaurantId, "orders") : collection(db, "orders");
@@ -935,8 +878,10 @@ export function CartPage({
       tableOrRoom?: boolean
       phoneNumber?: boolean
       customerName?: boolean
-      address?: boolean
+      weddingDate?: boolean
+      guestCount?: boolean
     } = {}
+
     let hasErrors = false
 
     if (items.length === 0) {
@@ -958,17 +903,23 @@ export function CartPage({
       hasErrors = true
     }
 
+    if (!weddingDate) {
+      newValidationErrors.weddingDate = true
+      hasErrors = true
+    }
+
+    if (!guestCount) {
+      newValidationErrors.guestCount = true
+      hasErrors = true
+    }
+
     if (orderType === "table" && !tableNumber && !roomNumber) {
       newValidationErrors.tableOrRoom = true
       hasErrors = true
     }
 
-    if (orderType === "delivery") {
-      if (!address) {
-        newValidationErrors.address = true
-        hasErrors = true
-      }
-    }
+
+
 
     // Update validation errors state
     setValidationErrors(newValidationErrors)
@@ -1334,6 +1285,7 @@ export function CartPage({
                                 <p className="mt-1 text-xs text-destructive">Iltimos, joy tanlang</p>
                               )}
                             </div>
+
                             <div className="space-y-4">
                               <div>
                                 <Label 
@@ -1410,6 +1362,63 @@ export function CartPage({
                                     <CreditCard className={`mb-1 h-6 w-6 ${paymentMethod === "card" ? "text-primary" : "text-blue-500"}`} />
                                     <span className="font-black text-[10px] uppercase tracking-tight">Karta</span>
                                   </Button>
+                                </div>
+                              </div>
+
+                              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-4">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-zinc-500">To'y ma'lumotlari</h3>
+                                
+                                <div>
+                                  <Label 
+                                    htmlFor="wedding-date"
+                                    className={validationErrors.weddingDate ? "text-destructive" : ""}
+                                  >
+                                    To'y kuni <span className="text-destructive">*</span>
+                                  </Label>
+                                  <Input
+                                    id="wedding-date"
+                                    type="date"
+                                    value={weddingDate}
+                                    onChange={(e) => setWeddingDate(e.target.value)}
+                                    className={`mt-1 ${validationErrors.weddingDate ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                                    disabled={isBlocked}
+                                  />
+                                  {validationErrors.weddingDate && (
+                                    <p className="mt-1 text-xs text-destructive">To'y kuni tanlanishi shart</p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <Label 
+                                    htmlFor="guest-count"
+                                    className={validationErrors.guestCount ? "text-destructive" : ""}
+                                  >
+                                    Mehmonlar soni (necha kishi) <span className="text-destructive">*</span>
+                                  </Label>
+                                  <Input
+                                    id="guest-count"
+                                    type="number"
+                                    placeholder="Masalan: 300"
+                                    value={guestCount}
+                                    onChange={(e) => setGuestCount(e.target.value)}
+                                    className={`mt-1 ${validationErrors.guestCount ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                                    disabled={isBlocked}
+                                  />
+                                  {validationErrors.guestCount && (
+                                    <p className="mt-1 text-xs text-destructive">Mehmonlar soni kiritilishi shart</p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <Label htmlFor="hall-details">Boshqa to'yxonaga keraklik ma'lumotlar</Label>
+                                  <Textarea
+                                    id="hall-details"
+                                    placeholder="Qo'shimcha istaklar, bezatish yoki boshqa ma'lumotlar..."
+                                    value={hallDetails}
+                                    onChange={(e) => setHallDetails(e.target.value)}
+                                    className="mt-1 resize-none"
+                                    disabled={isBlocked}
+                                  />
                                 </div>
                               </div>
                             </div>
@@ -1507,77 +1516,65 @@ export function CartPage({
                                  </Button>
                                </div>
                              </div>
-                            <div>
-                              <Label
-                                htmlFor="delivery-address"
-                                className={`required ${validationErrors.address ? "text-destructive" : ""}`}
-                              >
-                                Yetkazib berish manzili
-                                <span className="ml-1 text-destructive">*</span>
-                              </Label>
-                              
-                              <div className="mt-2 space-y-3">
-                                <div 
-                                  onClick={() => !isBlocked && setIsMapOpen(true)}
-                                  className={`relative group cursor-pointer overflow-hidden rounded-2xl border-2 transition-all hover:shadow-lg active:scale-[0.98] ${
-                                    validationErrors.address 
-                                      ? "border-destructive/30 bg-destructive/5" 
-                                      : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-primary/30"
-                                  }`}
-                                >
-                                  {/* Map Preview Background (Simplified) */}
-                                  <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.07] pointer-events-none mix-blend-overlay"
-                                    style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }} 
+
+                              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-4">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-zinc-500">To'y ma'lumotlari</h3>
+                                
+                                <div>
+                                  <Label 
+                                    htmlFor="delivery-wedding-date"
+                                    className={validationErrors.weddingDate ? "text-destructive" : ""}
+                                  >
+                                    To'y kuni <span className="text-destructive">*</span>
+                                  </Label>
+                                  <Input
+                                    id="delivery-wedding-date"
+                                    type="date"
+                                    value={weddingDate}
+                                    onChange={(e) => setWeddingDate(e.target.value)}
+                                    className={`mt-1 ${validationErrors.weddingDate ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                                    disabled={isBlocked}
                                   />
-                                  
-                                  <div className="p-4 flex gap-4 items-start relative z-10">
-                                    <div className="shrink-0">
-                                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                                        <MapPin className="w-6 h-6" />
-                                      </div>
-                                    </div>
-                                    <div className="flex-1 min-w-0 pr-8">
-                                      <p className="text-[10px] uppercase tracking-[0.1em] font-black text-primary/60 mb-1">Manzil:</p>
-                                      <p className={`text-sm font-bold leading-tight line-clamp-2 ${address ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 font-normal italic"}`}>
-                                        {address || "Xaritadan tanlang..."}
-                                      </p>
-                                    </div>
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 group-hover:text-primary transition-colors">
-                                      <ArrowLeft className="w-5 h-5 rotate-180" />
-                                    </div>
-                                  </div>
+                                  {validationErrors.weddingDate && (
+                                    <p className="mt-1 text-xs text-destructive">To'y kuni tanlanishi shart</p>
+                                  )}
                                 </div>
 
-                                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium px-1 leading-relaxed">
-                                  <b>Eslatma:</b> To'g'ri manzil va lokatsiya tanlash kuryerga sizni tezroq topishi uchun juda muhimdir.
-                                </p>
-                              </div>
-
-                              <Dialog open={isMapOpen} onOpenChange={setIsMapOpen}>
-                                <DialogContent className="p-0 sm:max-w-2xl border-none bg-transparent shadow-none top-[50%] -translate-y-1/2 overflow-visible">
-                                  <DialogHeader className="sr-only">
-                                     <DialogTitle>Manzilni tanlang</DialogTitle>
-                                  </DialogHeader>
-                                  <LocationPicker
-                                    initialLat={latitude}
-                                    initialLon={longitude}
-                                    onConfirm={(lat, lon, addr) => {
-                                      setLatitude(lat)
-                                      setLongitude(lon)
-                                      setAddress(addr)
-                                      setIsMapOpen(false)
-                                    }}
-                                    onCancel={() => setIsMapOpen(false)}
+                                <div>
+                                  <Label 
+                                    htmlFor="delivery-guest-count"
+                                    className={validationErrors.guestCount ? "text-destructive" : ""}
+                                  >
+                                    Mehmonlar soni (necha kishi) <span className="text-destructive">*</span>
+                                  </Label>
+                                  <Input
+                                    id="delivery-guest-count"
+                                    type="number"
+                                    placeholder="Masalan: 300"
+                                    value={guestCount}
+                                    onChange={(e) => setGuestCount(e.target.value)}
+                                    className={`mt-1 ${validationErrors.guestCount ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                                    disabled={isBlocked}
                                   />
-                                </DialogContent>
-                              </Dialog>
+                                  {validationErrors.guestCount && (
+                                    <p className="mt-1 text-xs text-destructive">Mehmonlar soni kiritilishi shart</p>
+                                  )}
+                                </div>
 
-                              {validationErrors.address && (
-                                <p className="mt-1 text-xs text-destructive">Manzil tanlanishi shart</p>
-                              )}
+                                <div>
+                                  <Label htmlFor="delivery-hall-details">Boshqa to'yxonaga keraklik ma'lumotlar</Label>
+                                  <Textarea
+                                    id="delivery-hall-details"
+                                    placeholder="Qo'shimcha istaklar, bezatish yoki boshqa ma'lumotlar..."
+                                    value={hallDetails}
+                                    onChange={(e) => setHallDetails(e.target.value)}
+                                    className="mt-1 resize-none"
+                                    disabled={isBlocked}
+                                  />
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
                       </TabsContent>
                     </Tabs>
                   )}
