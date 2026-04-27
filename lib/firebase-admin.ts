@@ -6,17 +6,32 @@ const serviceAccount = {
   privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
 }
 
+let adminAuth: admin.auth.Auth;
+let adminDb: admin.firestore.Firestore;
+
 if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    })
-    console.log("Firebase Admin initialized successfully")
-  } catch (error) {
-    console.error("Error initializing Firebase Admin:", error)
+  if (serviceAccount.projectId && serviceAccount.clientEmail && serviceAccount.privateKey) {
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount as any),
+      })
+      console.log("Firebase Admin initialized successfully")
+    } catch (error) {
+      console.error("Error initializing Firebase Admin:", error)
+    }
+  } else {
+    console.warn("Firebase Admin credentials missing. Admin features will be disabled during build.")
   }
 }
 
-export const adminAuth = admin.auth()
-export const adminDb = admin.firestore()
-export { admin }
+// Export getters or initialized instances
+try {
+  if (admin.apps.length) {
+    adminAuth = admin.auth()
+    adminDb = admin.firestore()
+  }
+} catch (e) {
+  console.warn("Failed to get Admin services:", e.message)
+}
+
+export { adminAuth, adminDb, admin }
