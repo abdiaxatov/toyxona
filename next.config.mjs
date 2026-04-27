@@ -78,8 +78,8 @@ const nextConfig = {
     webpackBuildWorker: false,
     parallelServerBuildTraces: false,
     parallelServerCompiles: false,
-    serverComponentsExternalPackages: ["firebase", "firebase-admin"],
   },
+  serverExternalPackages: ["firebase", "firebase-admin"],
 };
 
 if (userConfig) {

@@ -21,31 +21,32 @@ const firebaseConfig = {
 }
 
 // Initialize Firebase
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
-const auth = getAuth(app)
-
-// Initialize Firestore with persistence
+let app;
+let auth;
+let storage;
+let rtdb;
 let db;
-if (typeof window !== "undefined") {
-  const existingApps = getApps();
-  if (existingApps.length > 0) {
-    try {
-      db = getFirestore(app);
-    } catch (e) {
+
+if (!firebaseConfig.apiKey) {
+  console.warn("Firebase API Key missing. Firebase features will be disabled.");
+} else {
+  try {
+    app = getApps().length ? getApp() : initializeApp(firebaseConfig)
+    auth = getAuth(app)
+    storage = getStorage(app)
+    rtdb = getDatabase(app)
+
+    // Initialize Firestore with persistence
+    if (typeof window !== "undefined") {
       db = initializeFirestore(app, {
         localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
       });
+    } else {
+      db = getFirestore(app);
     }
-  } else {
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-    });
+  } catch (error) {
+    console.error("Firebase initialization error:", error);
   }
-} else {
-  db = getFirestore(app);
 }
-
-const storage = getStorage(app)
-const rtdb = getDatabase(app)
 
 export { app, auth, db, storage, rtdb, firebaseConfig }

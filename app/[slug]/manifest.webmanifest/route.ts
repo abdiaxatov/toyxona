@@ -2,6 +2,8 @@ import { db } from "@/lib/firebase"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { NextResponse } from "next/server"
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ slug: string }> }
