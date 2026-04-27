@@ -8,6 +8,7 @@ export interface RestaurantData {
 }
 
 export const getRestaurantBySlug = cache(async (slug: string): Promise<RestaurantData | null> => {
+    if (!db) return null
     const q = query(collection(db, "restaurants"), where("slug", "==", slug), limit(1))
     const snapshot = await getDocs(q)
 
@@ -41,6 +42,7 @@ export const getRestaurantBySlug = cache(async (slug: string): Promise<Restauran
 })
 
 export const getRestaurantByDomain = cache(async (domain: string): Promise<RestaurantData | null> => {
+    if (!db) return null
     // Remove port if present
     const cleanDomain = domain.split(':')[0].toLowerCase()
 

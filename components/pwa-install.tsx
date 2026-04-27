@@ -32,7 +32,7 @@ export default function PWAInstallPrompt() {
   /* 🔹 Fetch Restaurant Name based on Slug */
   useEffect(() => {
     const fetchRestaurantName = async () => {
-      if (params?.slug) {
+      if (params?.slug && db) {
         try {
           const q = query(collection(db, "restaurants"), where("slug", "==", params.slug));
           const snapshot = await getDocs(q);
