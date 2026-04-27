@@ -3,6 +3,8 @@ import { adminDb } from "@/lib/firebase-admin"
 import { FieldValue } from "firebase-admin/firestore"
 import { formatOrderMessage } from "@/lib/telegram-format"
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url)
