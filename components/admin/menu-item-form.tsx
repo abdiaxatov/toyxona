@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Save, X } from "lucide-react"
+import { Loader2, Save, X, Utensils, Gem, Info, Image as ImageIcon } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
 
 interface MenuItem {
   id?: string
@@ -25,6 +26,7 @@ interface MenuItem {
   available: boolean
   needsContainer: boolean
   isNew?: boolean
+  isService?: boolean
 }
 
 interface MenuItemFormProps {
@@ -43,6 +45,7 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
   const [available, setAvailable] = useState(item?.available !== false)
   const [needsContainer, setNeedsContainer] = useState(item?.needsContainer || false)
   const [isNew, setIsNew] = useState(item?.isNew || false)
+  const [isService, setIsService] = useState(item?.isService || false)
   const [categories, setCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [newCategory, setNewCategory] = useState("")
@@ -80,7 +83,6 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
     if (!newCategory.trim()) return
 
     try {
-      // Check if category already exists
       const categoryQuery = query(collection(db, "categories"), where("name", "==", newCategory))
       const categorySnapshot = await getDocs(categoryQuery)
 
@@ -123,7 +125,6 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
     try {
       let imageUrl = item?.image || ""
 
-      // Upload image if a new one is selected
       if (image) {
         const storageRef = ref(storage, `menu-items/${Date.now()}_${image.name}`)
         await uploadBytes(storageRef, image)
@@ -139,24 +140,23 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
         available,
         needsContainer,
         isNew,
+        isService,
         updatedAt: new Date(),
       }
 
       if (item?.id) {
-        // Update existing item
         await updateDoc(doc(db, "menu-items", item.id), menuItemData)
         toast({
-          title: "Taom yangilandi",
+          title: "Ma'lumot yangilandi",
           description: `"${name}" muvaffaqiyatli yangilandi`,
         })
       } else {
-        // Add new item
         await addDoc(collection(db, "menu-items"), {
           ...menuItemData,
           createdAt: new Date(),
         })
         toast({
-          title: "Taom qo'shildi",
+          title: "Qo'shildi",
           description: `"${name}" muvaffaqiyatli qo'shildi`,
         })
       }
@@ -166,7 +166,7 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
       console.error("Error saving menu item:", error)
       toast({
         title: "Xatolik",
-        description: "Taomni saqlashda xatolik yuz berdi",
+        description: "Saqlashda xatolik yuz berdi",
         variant: "destructive",
       })
     } finally {
@@ -175,119 +175,180 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Taom nomi</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Taom nomini kiriting"
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description">Taom haqida</Label>
-        <Textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Taom haqida ma'lumot kiriting"
-          rows={3}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="price">Цена (сум)</Label>
-        <Input
-          id="price"
-          type="number"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          placeholder="Taom narxini kiriting"
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="category">Kategoriya</Label>
-        {showNewCategoryInput ? (
-          <div className="flex gap-2">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-xs font-black uppercase tracking-widest text-zinc-400">Nomi (Taom yoki Xizmat)</Label>
             <Input
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              placeholder="Yangi kategoriya nomi"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Masalan: Nahorgi osh yoki Orkestr"
+              className="h-11 rounded-xl border-2 focus:ring-primary/20 font-bold"
+              required
             />
-            <Button type="button" onClick={handleAddCategory} variant="outline">
-              Qo'shish
-            </Button>
-            <Button
-              type="button"
-              onClick={() => setShowNewCategoryInput(false)}
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10"
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category" className="text-xs font-black uppercase tracking-widest text-zinc-400">Kategoriya</Label>
+            {showNewCategoryInput ? (
+              <div className="flex gap-2">
+                <Input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="Yangi kategoriya"
+                  className="h-11 rounded-xl border-2"
+                />
+                <Button type="button" onClick={handleAddCategory} variant="outline" className="h-11 rounded-xl border-2">
+                  Qo'shish
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setShowNewCategoryInput(false)}
+                  variant="ghost"
+                  className="h-11 w-11 p-0 rounded-xl"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Select value={category} onValueChange={setCategory} required>
+                  <SelectTrigger className="h-11 rounded-xl border-2 font-bold">
+                    <SelectValue placeholder="Kategoriyani tanlang" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-2">
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat} className="rounded-lg">
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  onClick={() => setShowNewCategoryInput(true)}
+                  variant="outline"
+                  className="h-11 rounded-xl border-2 whitespace-nowrap px-4"
+                >
+                  Yangi
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="price" className="text-xs font-black uppercase tracking-widest text-zinc-400">Narxi (So'm)</Label>
+            <div className="relative">
+              <Input
+                id="price"
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="0"
+                className="h-11 rounded-xl border-2 focus:ring-primary/20 font-black pl-10"
+                required
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">S</span>
+            </div>
+            <p className="text-[10px] text-zinc-400 font-bold">* Agar bu menyu ichidagi taom bo'lsa, narxi 0 bo'lishi mumkin.</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="image" className="text-xs font-black uppercase tracking-widest text-zinc-400">Rasm</Label>
+            <div 
+              className={cn(
+                "relative h-40 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all cursor-pointer overflow-hidden group",
+                imagePreview ? "border-primary/50 bg-primary/5" : "border-zinc-200 hover:border-primary/30 hover:bg-zinc-50"
+              )}
+              onClick={() => document.getElementById('image-upload')?.click()}
             >
-              <X className="h-4 w-4" />
-            </Button>
+              {imagePreview ? (
+                <>
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <ImageIcon className="w-8 h-8 text-white" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-8 h-8 text-zinc-300 mb-2" />
+                  <span className="text-[10px] font-black text-zinc-400 uppercase">Rasm yuklash</span>
+                </>
+              )}
+              <input id="image-upload" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+            </div>
           </div>
-        ) : (
-          <div className="flex gap-2">
-            <Select value={category} onValueChange={setCategory} required>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Kategoriyani tanlang" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              onClick={() => setShowNewCategoryInput(true)}
-              variant="outline"
-              className="whitespace-nowrap"
-            >
-              Yangi kategoriya
-            </Button>
+
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-xs font-black uppercase tracking-widest text-zinc-400">Batafsil ma'lumot</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Mahsulot yoki xizmat haqida..."
+              className="rounded-xl border-2 focus:ring-primary/20 min-h-[100px]"
+            />
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="image">Taom rasmi</Label>
-        <Input id="image" type="file" accept="image/*" onChange={handleImageChange} className="cursor-pointer" />
-        {imagePreview && (
-          <div className="mt-2">
-            <img src={imagePreview || "/placeholder.svg"} alt="Preview" className="h-40 w-40 rounded-md object-cover" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border-2 border-zinc-100 dark:border-zinc-800">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", isService ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600")}>
+              {isService ? <Gem className="w-4 h-4" /> : <Utensils className="w-4 h-4" />}
+            </div>
+            <div>
+              <Label htmlFor="isService" className="text-xs font-black uppercase block leading-none mb-1">Alohida Xizmat</Label>
+              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">Kartej, Video, Orkestr va hk.</p>
+            </div>
           </div>
-        )}
+          <Switch id="isService" checked={isService} onCheckedChange={setIsService} />
+        </div>
+
+        <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+              <Save className="w-4 h-4" />
+            </div>
+            <div>
+              <Label htmlFor="available" className="text-xs font-black uppercase block leading-none mb-1">Mavjudlik</Label>
+              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">Hozirda buyurtma olsa bo'ladi</p>
+            </div>
+          </div>
+          <Switch id="available" checked={available} onCheckedChange={setAvailable} />
+        </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Switch id="available" checked={available} onCheckedChange={setAvailable} />
-        <Label htmlFor="available">Mavjud</Label>
+      <div className="flex items-center gap-4 pt-4">
+        <div className="flex items-center space-x-2">
+          <Switch id="isNew" checked={isNew} onCheckedChange={setIsNew} />
+          <Label htmlFor="isNew" className="text-[10px] font-black uppercase tracking-widest">Yangi mahsulot</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch id="needsContainer" checked={needsContainer} onCheckedChange={setNeedsContainer} />
+          <Label htmlFor="needsContainer" className="text-[10px] font-black uppercase tracking-widest">Idish talab qiladi</Label>
+        </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Switch id="needsContainer" checked={needsContainer} onCheckedChange={setNeedsContainer} />
-        <Label htmlFor="needsContainer">Bir martalik idish kerak</Label>
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <Switch id="isNew" checked={isNew} onCheckedChange={setIsNew} />
-        <Label htmlFor="isNew">Yangi maxsulot</Label>
-      </div>
-
-      <div className="flex justify-end space-x-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+        <Button 
+          type="button" 
+          variant="ghost" 
+          onClick={onCancel}
+          className="h-12 px-8 rounded-2xl font-black uppercase tracking-widest border border-zinc-100"
+        >
           Bekor qilish
         </Button>
-        <Button type="submit" disabled={isLoading}>
+        <Button 
+          type="submit" 
+          disabled={isLoading}
+          className="h-12 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest shadow-xl shadow-primary/20"
+        >
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -296,7 +357,7 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Saqlash
+              Ma'lumotni saqlash
             </>
           )}
         </Button>
