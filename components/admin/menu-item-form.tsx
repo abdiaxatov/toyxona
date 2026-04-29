@@ -20,7 +20,7 @@ interface MenuItem {
   id?: string
   name: string
   description: string
-  price: number
+  price?: number
   category: string
   image: string
   available: boolean
@@ -134,7 +134,7 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
       const menuItemData = {
         name,
         description,
-        price: Number(price),
+        price: price ? Number(price) : 0,
         category,
         image: imageUrl,
         available,
@@ -248,7 +248,6 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0"
                 className="h-11 rounded-xl border-2 focus:ring-primary/20 font-black pl-10"
-                required
               />
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">S</span>
             </div>
