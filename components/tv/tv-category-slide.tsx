@@ -284,7 +284,7 @@ export function TvCategorySlide({ category, items, settings, onNextCategory }: T
                                     {v.price.toLocaleString()}
                                   </span>
                                 )}
-                                <span className="text-[10px] opacity-40" style={{ color: "var(--tv-text)" }}>so'm</span>
+                                <span className="text-[10px] opacity-40" style={{ color: "var(--tv-text)" }}>$</span>
                                 {vi < item.variants!.length - 1 && (
                                   <span className="ml-1 opacity-20" style={{ color: "var(--tv-text)" }}>·</span>
                                 )}
@@ -298,8 +298,7 @@ export function TvCategorySlide({ category, items, settings, onNextCategory }: T
                           <div className="flex flex-col">
                             <div className="flex items-baseline gap-2">
                               <span className={cn("font-black text-red-600", fontSize === 'xl' ? 'text-4xl' : 'text-3xl')} style={{ color: "var(--tv-text)" }}>
-                                {item.discountPrice!.toLocaleString()}
-                                <span className="text-sm font-black ml-1 uppercase opacity-60">so'm</span>
+                                <span className="text-sm font-black ml-1 uppercase opacity-60">$</span>
                               </span>
                               <span className="text-lg line-through opacity-25 italic font-medium" style={{ color: "var(--tv-text)" }}>
                                 {item.price.toLocaleString()}
@@ -319,7 +318,7 @@ export function TvCategorySlide({ category, items, settings, onNextCategory }: T
                         // ── Regular price ──
                         <span className={cn("font-black", priceSz)} style={{ color: "var(--tv-text)" }}>
                           {item.price.toLocaleString()}
-                          <span className="text-xs font-semibold ml-1 opacity-50">so'm</span>
+                            <span className="text-xs font-semibold ml-1 opacity-50">$</span>
                         </span>
                       )}
                     </div>

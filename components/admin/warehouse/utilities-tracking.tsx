@@ -260,7 +260,7 @@ export function UtilitiesTracking() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="unitPrice">
-                      Birlik Narxi (so'm/{utilityTypes.find((t) => t.value === newRecord.type)?.unit})
+                      Birlik Narxi ($/{utilityTypes.find((t) => t.value === newRecord.type)?.unit})
                     </Label>
                     <Input
                       id="unitPrice"
@@ -364,7 +364,7 @@ export function UtilitiesTracking() {
               <div key={stat.type} className="flex items-center gap-2">
                 <stat.icon className="h-4 w-4 text-purple-600" />
                 <span className="text-purple-700">
-                  {stat.totalCost > 0 ? formatCurrency(stat.totalCost) : "0 so'm"}
+                  {stat.totalCost > 0 ? formatCurrency(stat.totalCost) : "0 $"}
                 </span>
               </div>
             ))}
