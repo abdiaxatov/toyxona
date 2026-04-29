@@ -6,16 +6,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, lang: string = "uz"): string {
-  // If amount is small, treat as USD ($)
-  if (amount > 0 && amount <= 1000) {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  }
-
   const suffix = lang === "uz" ? " so'm" : lang === "ru" ? " сум" : " UZS";
   return new Intl.NumberFormat(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", {
     style: "currency",

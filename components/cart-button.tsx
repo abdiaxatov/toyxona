@@ -69,7 +69,7 @@ export function CartButton({ primaryColor, restaurantId, onCartClick, activeTab,
           </motion.div>
           <div className="flex flex-col items-start pr-2">
             <span className="text-xs font-semibold opacity-80 uppercase tracking-wider leading-none">Buyurtma berish</span>
-            <span className="font-bold text-lg leading-none mt-1">{getTotalPrice().toLocaleString()} so'm</span>
+            <span className="font-bold text-lg leading-none mt-1">{getTotalPrice().toLocaleString()} $</span>
           </div>
           <div 
             className="bg-white font-bold text-sm w-7 h-7 flex items-center justify-center rounded-full ml-2 shadow-inner"

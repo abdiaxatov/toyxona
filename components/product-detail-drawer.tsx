@@ -427,7 +427,7 @@ export function ProductDetailDrawer({
                         </motion.div>
 
                         {/* Price (simple items only) */}
-                        {item.price && item.price > 0 && (!item.variants || item.variants.length === 0) && (
+                        {(!item.variants || item.variants.length === 0) && (
                             <motion.div
                                 className="flex items-center gap-2"
                                 initial={{ y: 12, opacity: 0 }}
@@ -532,7 +532,7 @@ export function ProductDetailDrawer({
                                                             "text-[9px] font-bold uppercase ml-0.5 leading-none",
                                                             selectedVariantId === variant.id ? "text-primary/60" : hasDiscount ? "text-red-600/60" : "text-primary/60"
                                                         )}>
-                                                            {language === 'uz' ? (displayPrice > 1000 ? "so'm" : "$") : language === 'ru' ? "сум" : "$"}
+                                                            {language === 'uz' ? "so'm" : language === 'ru' ? "сум" : "uzs"}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -577,7 +577,7 @@ export function ProductDetailDrawer({
                             </motion.div>
                         )}
                         {/* Add to Cart Button */}
-                        {item.price && item.price > 0 && isOrderingEnabled && (
+                        {isOrderingEnabled && (
                             <motion.div
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}

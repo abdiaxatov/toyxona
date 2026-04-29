@@ -18,14 +18,8 @@ export function PriceDisplay({ price, discountPrice, className, primaryColor, is
     const finalSizeClass = isDense ? "text-[10px]" : isCompact ? "text-xs" : "text-lg";
     const currencySizeClass = isDense ? "text-[7px]" : "text-[0.6em]";
 
-    if (!price || price === 0) {
-        return null;
-    }
-
-    // Helper to get currency suffix
-    // If the user wants $, we can detect it or just change the logic.
-    // Given the request "som ozgarishiyam kerak $ ga", I'll make it configurable or at least support it.
-    const currencySuffix = language === "uz" ? "so'm" : language === "ru" ? "сум" : "$";
+    // Helper to get currency suffix without built-in spacing
+    const currencySuffix = language === "uz" ? "so'm" : language === "ru" ? "сум" : "uzs";
 
     if (!hasDiscount) {
         return (

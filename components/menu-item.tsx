@@ -270,15 +270,6 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
           {getLocalizedName(item, language)}
         </h3>
 
-        {(!item.price || item.price === 0) && item.description && (
-          <p className={cn(
-            "text-gray-500 line-clamp-3 leading-tight mt-1",
-            columns >= 4 ? "text-[7px]" : isCompact ? "text-[9px]" : "text-[11px]"
-          )}>
-            {item.description}
-          </p>
-        )}
-
         {/* Stock indicator */}
         {hasStockLimit && stockNum > 0 && stockNum <= 10 && (
           <span className={cn(
@@ -332,7 +323,7 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
                     "font-black text-slate-400 uppercase tracking-tighter shrink-0",
                     columns >= 4 ? "text-[7px]" : "ml-1 text-[0.6em]"
                   )}>
-                    {language === 'uz' ? (item.price && item.price > 1000 ? "so'm" : "$") : language === 'ru' ? "сум" : "$"}
+                    {language === 'uz' ? "so'm" : language === 'ru' ? "сум" : "uzs"}
                   </span>
                 </div>
               </div>
@@ -352,7 +343,7 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
             )}
           </div>
 
-          {item.price && item.price > 0 && isOrderingEnabled && !isOutOfStock && (() => {
+          {isOrderingEnabled && !isOutOfStock && (() => {
             const quantity = getItemQuantity(item.id);
             const hasVariants = item.variants && item.variants.length > 0;
             const isAtMax = hasStockLimit && quantity >= stockNum;

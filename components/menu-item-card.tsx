@@ -95,51 +95,41 @@ export function MenuItemCard({ item }: MenuItemCardProps) {
           <div className="space-y-2">
             <h3 className="font-semibold text-lg line-clamp-1">{item.name}</h3>
             <p className="text-sm text-gray-600 line-clamp-2">{item.description}</p>
-            <div className="flex items-center justify-between min-h-[40px]">
-              {item.price && item.price > 0 ? (
-                <>
-                  <span className="text-lg font-bold text-primary">
-                    {item.price.toLocaleString()} {item.price > 1000 ? "so'm" : "$"}
-                  </span>
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-bold text-primary">{item.price.toLocaleString()} сум</span>
 
-                  {item.available && (
-                    <div className="flex items-center gap-2">
-                      {quantity > 0 ? (
-                        <div className="flex items-center gap-2 bg-secondary/10 p-1 rounded-xl">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleUpdateQuantity(quantity - 1)}
-                            className="h-8 w-8 p-0 rounded-lg hover:bg-white shadow-sm transition-all"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="font-bold min-w-[20px] text-center">{quantity}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleUpdateQuantity(quantity + 1)}
-                            className="h-8 w-8 p-0 rounded-lg hover:bg-white shadow-sm transition-all"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={handleAddToCart}
-                          className="rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Qo'shish
-                        </Button>
-                      )}
+              {item.available && (
+                <div className="flex items-center gap-2">
+                  {quantity > 0 ? (
+                    <div className="flex items-center gap-2 bg-secondary/10 p-1 rounded-xl">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleUpdateQuantity(quantity - 1)}
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-white shadow-sm transition-all"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="font-bold min-w-[20px] text-center">{quantity}</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleUpdateQuantity(quantity + 1)}
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-white shadow-sm transition-all"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={handleAddToCart}
+                      className="rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Qo'shish
+                    </Button>
                   )}
-                </>
-              ) : (
-                <div className="w-full text-zinc-400 text-xs italic font-medium">
-                   Narxi kelishilgan holda
                 </div>
               )}
             </div>

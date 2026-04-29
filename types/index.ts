@@ -8,7 +8,7 @@ export interface MenuItem {
   description_uz?: string;
   description_ru?: string;
   description_en?: string;
-  price?: number;
+  price: number;
   category: string;
   imageUrl?: string; // Kept for backward compatibility if needed, but primary is imageUrls
   imageUrls?: string[];
