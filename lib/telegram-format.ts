@@ -42,23 +42,23 @@ export function formatOrderMessage(order: any, orderId: string, restaurant: any)
     let count = 1
     order?.items?.forEach((item: any) => {
         const variantText = item.variantName ? ` (${escapeHTML(item.variantName)})` : ""
-        message += `${count}. ${escapeHTML(item.name)}${variantText} - ${item.quantity} x ${item.price.toLocaleString("uz-UZ")} so'm\n`
+        message += `${count}. ${escapeHTML(item.name)}${variantText} - ${item.quantity} x ${item.price.toLocaleString("uz-UZ")} $\n`
         count++
     })
 
     message += `\n━━━━━━━━━━━━━━━\n`
-    message += `💰 <b>Taomlar summasi:</b> ${order?.subtotal?.toLocaleString("uz-UZ") || 0} so'm`
+    message += `💰 <b>Taomlar summasi:</b> ${order?.subtotal?.toLocaleString("uz-UZ") || 0} $`
     
     if (order?.containerCost) {
-        message += `\n📦 <b>Idish puli:</b> ${order.containerCost.toLocaleString("uz-UZ")} so'm`
+        message += `\n📦 <b>Idish puli:</b> ${order.containerCost.toLocaleString("uz-UZ")} $`
     }
     
     const showDelivery = order?.deliveryFee && order.orderType === "delivery" && restaurant?.showDeliveryFeeInMessage !== false;
     if (showDelivery) {
-        message += `\n🚚 <b>Yetkazib berish:</b> ${order.deliveryFee.toLocaleString("uz-UZ")} so'm`
+        message += `\n🚚 <b>Yetkazib berish:</b> ${order.deliveryFee.toLocaleString("uz-UZ")} $`
     }
 
-    message += `\n\n💵 <b>JAMI SUMMA:</b> ${order?.total?.toLocaleString("uz-UZ") || 0} so'm`
+    message += `\n\n💵 <b>JAMI SUMMA:</b> ${order?.total?.toLocaleString("uz-UZ") || 0} $`
 
     if (order?.latitude && order?.longitude) {
         message += `\n\n📍 <b>Manzil (Xarita):</b>\n`

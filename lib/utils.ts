@@ -6,15 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, lang: string = "uz"): string {
-  const suffix = lang === "uz" ? " so'm" : lang === "ru" ? " сум" : " UZS";
   return new Intl.NumberFormat(lang === "uz" ? "uz-UZ" : lang === "ru" ? "ru-RU" : "en-US", {
     style: "currency",
-    currency: "UZS",
+    currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  })
-    .format(amount)
-    .replace("UZS", suffix)
+  }).format(amount);
 }
 
 export function formatNumber(num: number): string {

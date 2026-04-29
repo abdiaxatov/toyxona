@@ -532,7 +532,7 @@ export function ProductDetailDrawer({
                                                             "text-[9px] font-bold uppercase ml-0.5 leading-none",
                                                             selectedVariantId === variant.id ? "text-primary/60" : hasDiscount ? "text-red-600/60" : "text-primary/60"
                                                         )}>
-                                                            {language === 'uz' ? "so'm" : language === 'ru' ? "сум" : "uzs"}
+                                                            "$"
                                                         </span>
                                                     </div>
                                                 </div>

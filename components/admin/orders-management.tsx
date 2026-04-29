@@ -432,7 +432,7 @@ export function OrdersManagement() {
             {[
               { label: "Bugun", value: stats.todayOrders, icon: Calendar, color: "text-blue-600 bg-blue-50" },
               { label: "Kutilmoqda", value: stats.pendingCount, icon: Clock, color: "text-amber-600 bg-amber-50" },
-              { label: "Bugungi tushum", value: `${(stats.todayRevenue / 1000).toFixed(0)}k so'm`, icon: TrendingUp, color: "text-emerald-600 bg-emerald-50" },
+              { label: "Bugungi tushum", value: `${stats.todayRevenue.toLocaleString()} $`, icon: TrendingUp, color: "text-emerald-600 bg-emerald-50" },
               { label: "Jami buyurtma", value: stats.totalOrders, icon: Package, color: "text-violet-600 bg-violet-50" }
             ].map((c, i) => (
               <div key={i} className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800">
@@ -512,7 +512,7 @@ export function OrdersManagement() {
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <p className="text-sm font-black">{order.total?.toLocaleString("uz-UZ")}</p>
-                          <span className="text-[9px] text-zinc-400 font-bold">so'm</span>
+                          <span className="text-[9px] text-zinc-400 font-bold">$</span>
                         </div>
                         <div className={`h-7 w-7 rounded-full flex items-center justify-center ${expandedOrders.has(order.id) ? "bg-primary text-white" : "bg-zinc-100 text-zinc-400"}`}>
                           {expandedOrders.has(order.id) ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -550,23 +550,23 @@ export function OrdersManagement() {
                               <div className="px-1 space-y-1">
                                 <div className="flex justify-between text-[11px] font-bold text-zinc-500 uppercase tracking-tight">
                                   <span>Taomlar:</span>
-                                  <span>{(order.subtotal || (order.items ?? []).reduce((s, i) => s + (i.price * i.quantity), 0)).toLocaleString("uz-UZ")} so'm</span>
+                                   <span>{(order.subtotal || (order.items ?? []).reduce((s, i) => s + (i.price * i.quantity), 0)).toLocaleString("uz-UZ")} $</span>
                                 </div>
                                 {order.containerCost > 0 && (
                                   <div className="flex justify-between text-[11px] font-bold text-zinc-500 uppercase tracking-tight">
                                     <span>Idish puli:</span>
-                                    <span>{order.containerCost.toLocaleString("uz-UZ")} so'm</span>
+                                     <span>{order.containerCost.toLocaleString("uz-UZ")} $</span>
                                   </div>
                                 )}
                                 {order.orderType === "delivery" && order.deliveryFee > 0 && (
                                   <div className="flex justify-between text-[11px] font-bold text-zinc-500 uppercase tracking-tight">
                                     <span>Yetkazib berish:</span>
-                                    <span>{order.deliveryFee.toLocaleString("uz-UZ")} so'm</span>
+                                     <span>{order.deliveryFee.toLocaleString("uz-UZ")} $</span>
                                   </div>
                                 )}
                                 <div className="flex justify-between text-sm font-black text-primary border-t pt-1 mt-1 uppercase tracking-tighter">
                                   <span>Jami summa:</span>
-                                  <span>{order.total?.toLocaleString("uz-UZ")} so'm</span>
+                                   <span>{order.total?.toLocaleString("uz-UZ")} $</span>
                                 </div>
                               </div>
                               {order.notes && <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/50 text-xs text-amber-700 italic">"{order.notes}"</div>}

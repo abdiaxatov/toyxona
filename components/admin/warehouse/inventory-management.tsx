@@ -381,7 +381,7 @@ export function InventoryManagement({ inventory }: InventoryManagementProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="unitPrice">Birlik Narxi (so'm) *</Label>
+                  <Label htmlFor="unitPrice">Birlik Narxi ($) *</Label>
                   <Input
                     id="unitPrice"
                     type="number"

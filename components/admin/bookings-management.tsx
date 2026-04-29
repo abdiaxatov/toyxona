@@ -396,37 +396,37 @@ export function BookingsManagement() {
                   <tr>
                     <td class="item-qty">${item.qty} x</td>
                     <td class="item-name">${item.name}</td>
-                    <td class="item-price">${(item.price * item.qty).toLocaleString()} so'm</td>
+                    <td class="item-price">${(item.price * item.qty).toLocaleString()} $</td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
           ` : ''}
-
+ 
           <div class="financials">
             <div class="fin-row">
               <span>Dasturxon (${data.guestCount} kishi x ${Number(data.pricePerPerson).toLocaleString()}):</span>
-              <span>${perPersonTotal.toLocaleString()} so'm</span>
+              <span>${perPersonTotal.toLocaleString()} $</span>
             </div>
             <div class="fin-row">
               <span>Xizmatlar summasi:</span>
-              <span>${menuTotal.toLocaleString()} so'm</span>
+              <span>${menuTotal.toLocaleString()} $</span>
             </div>
             <div class="fin-row">
               <span>Zal ijara haqi:</span>
-              <span>${(Number(data.hallPrice) || 0).toLocaleString()} so'm</span>
+              <span>${(Number(data.hallPrice) || 0).toLocaleString()} $</span>
             </div>
             <div class="fin-row total">
               <span>JAMI SUMMA:</span>
-              <span>${finalTotal.toLocaleString()} so'm</span>
+              <span>${finalTotal.toLocaleString()} $</span>
             </div>
             <div class="fin-row" style="color: #059669; margin-top: 10px;">
               <span>To'langan (Zaklad):</span>
-              <span>${(Number(data.advancePayment) || 0).toLocaleString()} so'm</span>
+              <span>${(Number(data.advancePayment) || 0).toLocaleString()} $</span>
             </div>
             <div class="fin-row" style="color: #dc2626; font-size: 16px; font-weight: 900; border-top: 1px dashed #ccc; margin-top: 5px; padding-top: 10px;">
               <span>QOLGAN SUMMA:</span>
-              <span>${remainingAmount.toLocaleString()} so'm</span>
+              <span>${remainingAmount.toLocaleString()} $</span>
             </div>
           </div>
 

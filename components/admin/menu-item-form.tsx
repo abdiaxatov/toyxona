@@ -239,7 +239,7 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price" className="text-xs font-black uppercase tracking-widest text-zinc-400">Narxi (So'm)</Label>
+            <Label htmlFor="price" className="text-xs font-black uppercase tracking-widest text-zinc-400">Narxi ($)</Label>
             <div className="relative">
               <Input
                 id="price"
@@ -250,7 +250,7 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
                 className="h-11 rounded-xl border-2 focus:ring-primary/20 font-black pl-10"
                 required
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">S</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">$</span>
             </div>
             <p className="text-[10px] text-zinc-400 font-bold">* Agar bu menyu ichidagi taom bo'lsa, narxi 0 bo'lishi mumkin.</p>
           </div>

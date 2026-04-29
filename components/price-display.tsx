@@ -19,7 +19,7 @@ export function PriceDisplay({ price, discountPrice, className, primaryColor, is
     const currencySizeClass = isDense ? "text-[7px]" : "text-[0.6em]";
 
     // Helper to get currency suffix without built-in spacing
-    const currencySuffix = language === "uz" ? "so'm" : language === "ru" ? "сум" : "uzs";
+    const currencySuffix = "$";
 
     if (!hasDiscount) {
         return (

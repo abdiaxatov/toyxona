@@ -160,7 +160,7 @@ export function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="delivery-fee">Yetkazib berish narxi (so'm)</Label>
+                <Label htmlFor="delivery-fee">Yetkazib berish narxi ($)</Label>
                 <Input
                   id="delivery-fee"
                   type="number"

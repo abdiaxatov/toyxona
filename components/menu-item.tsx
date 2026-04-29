@@ -323,7 +323,7 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
                     "font-black text-slate-400 uppercase tracking-tighter shrink-0",
                     columns >= 4 ? "text-[7px]" : "ml-1 text-[0.6em]"
                   )}>
-                    {language === 'uz' ? "so'm" : language === 'ru' ? "сум" : "uzs"}
+                    "$"
                   </span>
                 </div>
               </div>
