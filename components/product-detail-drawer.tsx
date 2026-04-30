@@ -427,7 +427,7 @@ export function ProductDetailDrawer({
                         </motion.div>
 
                         {/* Price (simple items only) */}
-                        {(!item.variants || item.variants.length === 0) && (
+                        {(!item.variants || item.variants.length === 0) && !!currentPrice && currentPrice > 0 && (
                             <motion.div
                                 className="flex items-center gap-2"
                                 initial={{ y: 12, opacity: 0 }}
@@ -515,27 +515,29 @@ export function ProductDetailDrawer({
                                                 )}>
                                                     {displayName}
                                                 </span>
-                                                <div className="flex flex-col gap-0.5 mt-0.5">
-                                                    {hasDiscount && (
-                                                        <span className="text-[10px] font-bold text-gray-400 line-through decoration-red-500/50 leading-none">
-                                                            {variant.price.toLocaleString()}
-                                                        </span>
-                                                    )}
-                                                    <div className="flex items-baseline gap-0.5">
-                                                        <span className={cn(
-                                                            "text-base font-black tabular-nums leading-none",
-                                                            selectedVariantId === variant.id ? "text-primary" : hasDiscount ? "text-red-600" : "text-gray-900"
-                                                        )}>
-                                                            {displayPrice.toLocaleString()}
-                                                        </span>
-                                                        <span className={cn(
-                                                            "text-[9px] font-bold uppercase ml-0.5 leading-none",
-                                                            selectedVariantId === variant.id ? "text-primary/60" : hasDiscount ? "text-red-600/60" : "text-primary/60"
-                                                        )}>
-                                                            "$"
-                                                        </span>
+                                                {displayPrice > 0 && (
+                                                    <div className="flex flex-col gap-0.5 mt-0.5">
+                                                        {hasDiscount && (
+                                                            <span className="text-[10px] font-bold text-gray-400 line-through decoration-red-500/50 leading-none">
+                                                                {variant.price.toLocaleString()}
+                                                            </span>
+                                                        )}
+                                                        <div className="flex items-baseline gap-0.5">
+                                                            <span className={cn(
+                                                                "text-base font-black tabular-nums leading-none",
+                                                                selectedVariantId === variant.id ? "text-primary" : hasDiscount ? "text-red-600" : "text-gray-900"
+                                                            )}>
+                                                                {displayPrice.toLocaleString()}
+                                                            </span>
+                                                            <span className={cn(
+                                                                "text-[9px] font-bold uppercase ml-0.5 leading-none",
+                                                                selectedVariantId === variant.id ? "text-primary/60" : hasDiscount ? "text-red-600/60" : "text-primary/60"
+                                                            )}>
+                                                                "$"
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                )}
                                             </motion.div>
                                         );
                                     })}

@@ -21,6 +21,10 @@ export function PriceDisplay({ price, discountPrice, className, primaryColor, is
     // Helper to get currency suffix without built-in spacing
     const currencySuffix = "$";
 
+    if (!price || price === 0) {
+        return null;
+    }
+
     if (!hasDiscount) {
         return (
             <div

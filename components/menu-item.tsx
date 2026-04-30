@@ -292,41 +292,47 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
         <div className="flex flex-col items-center gap-1.5 mt-auto pt-1">
           <div className="w-full">
             {item.variants && item.variants.length > 0 ? (
-              <div className="w-full">
-                <div className="flex flex-col items-center w-full text-primary leading-tight" style={primaryColor ? { color: primaryColor } : undefined}>
-                  <span className={cn(
-                    "font-black tracking-tighter whitespace-nowrap",
-                    columns >= 4 ? "text-[10px]" : isCompact ? "text-xs" : "text-lg"
-                  )}>
-                    {(() => {
-                      const now = new Date();
-                      const prices = item.variants.map(v => {
-                        if (v.discountPrice && v.discountEndsAt && new Date(v.discountEndsAt) > now) {
-                          return v.discountPrice;
-                        }
-                        return v.price;
-                      });
-                      const minPrice = Math.min(...prices);
-                      const maxPrice = Math.max(...prices);
+              (() => {
+                const now = new Date();
+                const prices = item.variants.map(v => {
+                  if (v.discountPrice && v.discountEndsAt && new Date(v.discountEndsAt) > now) {
+                    return v.discountPrice;
+                  }
+                  return v.price;
+                });
+                const minPrice = Math.min(...prices);
+                const maxPrice = Math.max(...prices);
 
-                      if (minPrice === maxPrice) {
-                        return minPrice.toLocaleString();
-                      }
-                      // If price is too long in compact mode, use shorter format
-                      if (columns >= 4) {
-                        return `${minPrice.toLocaleString()}-${maxPrice.toLocaleString()}`;
-                      }
-                      return `${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()}`;
-                    })()}
-                  </span>
-                  <span className={cn(
-                    "font-black text-slate-400 uppercase tracking-tighter shrink-0",
-                    columns >= 4 ? "text-[7px]" : "ml-1 text-[0.6em]"
-                  )}>
-                    "$"
-                  </span>
-                </div>
-              </div>
+                if (!maxPrice || maxPrice === 0) return null;
+
+                return (
+                  <div className="w-full">
+                    <div className="flex flex-col items-center w-full text-primary leading-tight" style={primaryColor ? { color: primaryColor } : undefined}>
+                      <span className={cn(
+                        "font-black tracking-tighter whitespace-nowrap",
+                        columns >= 4 ? "text-[10px]" : isCompact ? "text-xs" : "text-lg"
+                      )}>
+                        {(() => {
+                          if (minPrice === maxPrice) {
+                            return minPrice.toLocaleString();
+                          }
+                          // If price is too long in compact mode, use shorter format
+                          if (columns >= 4) {
+                            return `${minPrice.toLocaleString()}-${maxPrice.toLocaleString()}`;
+                          }
+                          return `${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()}`;
+                        })()}
+                      </span>
+                      <span className={cn(
+                        "font-black text-slate-400 uppercase tracking-tighter shrink-0",
+                        columns >= 4 ? "text-[7px]" : "ml-1 text-[0.6em]"
+                      )}>
+                        "$"
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()
             ) : (
               <PriceDisplay
                 price={item.price}
