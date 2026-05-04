@@ -198,39 +198,47 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
   const isManualScrolling = useRef(false);
   const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  // 🔹 ScrollSpy logic using IntersectionObserver
   useEffect(() => {
     if (activeTab !== "menu" || isLoading) return;
 
-    const handleScroll = () => {
+    const observers = new Map<string, IntersectionObserver>();
+    const categoryElements = document.querySelectorAll('[id^="category-"]');
+    
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
       if (isManualScrolling.current) return;
 
-      // Handle "All" (top of page)
-      if (window.scrollY < 100) {
-        if (selectedCategory !== null) setSelectedCategory(null);
-        return;
-      }
+      // Filter entries that are intersecting and sort them to find the one closest to the top
+      const intersecting = entries
+        .filter(entry => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
 
-      const categoryElements = document.querySelectorAll('[id^="category-"]');
-      let currentCategory = selectedCategory;
-
-      // Find the category that is currently most visible at the top
-      categoryElements.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        // If the top of the category section is near the top of the viewport
-        if (rect.top <= 160 && rect.bottom > 160) {
-          const id = el.id.replace("category-", "");
-          currentCategory = id === "new" ? "new" : id;
+      if (intersecting.length > 0) {
+        // We pick the first one as it's the topmost intersecting element
+        const topEntry = intersecting[0];
+        const id = topEntry.target.id.replace("category-", "");
+        const currentCategory = id === "new" ? "new" : id;
+        
+        if (currentCategory !== selectedCategory) {
+          setSelectedCategory(currentCategory);
         }
-      });
-
-      if (currentCategory !== selectedCategory) {
-        setSelectedCategory(currentCategory);
+      } else if (window.scrollY < 100) {
+        // Special case for top of page
+        if (selectedCategory !== null) setSelectedCategory(null);
       }
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [selectedCategory, activeTab, isLoading]);
+    const observerOptions = {
+      root: null,
+      rootMargin: "-100px 0px -70% 0px", // Focus on elements near the top
+      threshold: [0, 0.1, 0.5]
+    };
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions);
+    categoryElements.forEach(el => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [activeTab, isLoading, selectedCategory]);
 
   const lenis = useLenis();
 
@@ -745,19 +753,16 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
     });
   }, [menuItems]);
 
-  // 🔹 Background Image Preloader (Barcha rasmlarni oldindan yuklash)
+  // 🔹 Remove aggressive image preloader to save bandwidth and memory on mobile
+  /* 
   useEffect(() => {
     if (menuItems.length === 0) return;
-
-    // Preload ALL menu item images in background
     menuItems.forEach((item) => {
       if (item.imageUrl) {
         const img = new window.Image();
         img.src = item.imageUrl;
       }
     });
-
-    // Preload banner images
     banners.forEach((banner) => {
       if (banner.imageUrl) {
         const img = new window.Image();
@@ -765,6 +770,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
       }
     });
   }, [menuItems, banners]);
+  */
 
   const openLink = (url: string) => {
     if (!url) return;
@@ -999,7 +1005,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed top-0 left-0 right-0 z-[500] bg-white/70 dark:bg-black/70 backdrop-blur-2xl border-b border-white/20 dark:border-white/10 px-4 py-3 pb-4 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-b-[32px] overflow-hidden"
+            className="fixed top-0 left-0 right-0 z-[500] bg-white/80 dark:bg-black/80 backdrop-blur-lg border-b border-white/20 dark:border-white/10 px-4 py-3 pb-4 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-b-[32px] overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 pointer-events-none" />
             
@@ -1118,7 +1124,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
               {tableInfo && restaurantData?.enableWaiterCall !== false && (
                 <div className="mt-4 flex items-center gap-2">
                   <div className="bg-green-500 w-2 h-2 rounded-full animate-pulse shadow-[0_0_12px_rgba(34,197,94,0.6)]" />
-                  <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg text-[10px] md:text-xs font-black uppercase tracking-widest text-white/90">
+                  <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-lg border border-white/20 shadow-lg text-[10px] md:text-xs font-black uppercase tracking-widest text-white/90">
                     {tableInfo.type} • <span className="text-white">{tableInfo.number}</span>
                   </div>
                 </div>
@@ -2009,7 +2015,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
                     onClick={() => setLocationDrawerOpen(true)} 
                     className="group"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-blue-500/20 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-blue-600 dark:text-blue-400 group-active:scale-90 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border border-blue-500/20 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-blue-600 dark:text-blue-400 group-active:scale-90 transition-all duration-300">
                       <MapPin className="w-6 h-6" />
                     </div>
                   </button>
@@ -2019,7 +2025,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
                     onClick={() => setPhoneDrawerOpen(true)} 
                     className="group"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-green-500/20 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-green-600 dark:text-green-400 group-active:scale-90 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border border-green-500/20 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-green-600 dark:text-green-400 group-active:scale-90 transition-all duration-300">
                       <Phone className="w-6 h-6" />
                     </div>
                   </button>
@@ -2029,7 +2035,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
                     onClick={() => setTelegramDrawerOpen(true)} 
                     className="group"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-sky-500/20 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-sky-600 dark:text-sky-400 group-active:scale-90 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border border-sky-500/20 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-sky-600 dark:text-sky-400 group-active:scale-90 transition-all duration-300">
                       <Send className="w-6 h-6" />
                     </div>
                   </button>
@@ -2039,7 +2045,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
                     onClick={() => setInstagramDrawerOpen(true)} 
                     className="group"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-pink-500/20 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-pink-600 dark:text-pink-400 group-active:scale-90 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg border border-pink-500/20 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-pink-600 dark:text-pink-400 group-active:scale-90 transition-all duration-300">
                       <Instagram className="w-6 h-6" />
                     </div>
                   </button>
@@ -2246,9 +2252,30 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
 
 /* 🔹 Animated Background Component */
 function AnimatedBackground({ color, opacity }: { color: string; opacity: number }) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+  }, []);
+
   // Use HSL for variations
   const secondaryColor = color + '80'; // 50% opacity string
   
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 bg-zinc-50 dark:bg-zinc-950">
+        <div 
+          className="absolute -top-[10%] -left-[10%] w-[80%] h-[80%] rounded-[40%] blur-[80px]"
+          style={{ background: color, opacity: opacity * 0.6 }}
+        />
+        <div 
+          className="absolute -bottom-[15%] -right-[10%] w-[75%] h-[75%] rounded-[30%] blur-[100px]"
+          style={{ background: secondaryColor, opacity: opacity * 0.8 }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
       {/* Dynamic Blob 1 */}

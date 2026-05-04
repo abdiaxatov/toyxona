@@ -103,7 +103,7 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
       whileTap={{ scale: 0.96 }}
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
       className={cn(
-        "group overflow-hidden border border-white/40 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl rounded-[32px] menu-item-card cursor-pointer shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.12)]",
+        "group overflow-hidden border border-white/40 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md md:backdrop-blur-xl rounded-[32px] menu-item-card cursor-pointer shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.12)]",
         isOutOfStock && "grayscale-[0.5] opacity-80"
       )}
       style={{
