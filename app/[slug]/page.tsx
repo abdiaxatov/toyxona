@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { MenuPage } from "@/components/menu-page"
 import type { Metadata } from 'next'
 import { getRestaurantBySlug } from "@/lib/restaurant-lookup"
+import { adminDb } from "@/lib/firebase-admin"
 
 interface PageProps {
     params: Promise<{ slug: string }>
@@ -63,24 +64,34 @@ export default async function RestaurantMenuPage({ params }: PageProps) {
     const serializedData = JSON.parse(JSON.stringify(restaurantData))
 
     // 🔹 Pre-fetch collections using Admin SDK to bypass security rules
-    const [categoriesSnap, menuItemsSnap, bannersSnap] = await Promise.all([
-        adminDb.collection("restaurants").doc(serializedData.id).collection("categories").orderBy("order").get(),
-        adminDb.collection("restaurants").doc(serializedData.id).collection("menuItems").get(),
-        adminDb.collection("restaurants").doc(serializedData.id).collection("banners").orderBy("createdAt", "desc").get()
-    ]);
+    let initialCategories: any[] = [];
+    let initialMenuItems: any[] = [];
+    let initialBanners: any[] = [];
 
-    const initialCategories = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const initialMenuItems = menuItemsSnap.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            ...data,
-            // Format dates
-            discountEndsAt: data.discountEndsAt?.toMillis ? data.discountEndsAt.toMillis() : (data.discountEndsAt?._seconds ? data.discountEndsAt._seconds * 1000 : null),
-        };
-    }).filter(item => item.available !== false && item.isAvailable !== false);
+    if (adminDb) {
+        try {
+            const [categoriesSnap, menuItemsSnap, bannersSnap] = await Promise.all([
+                adminDb.collection("restaurants").doc(serializedData.id).collection("categories").orderBy("order").get(),
+                adminDb.collection("restaurants").doc(serializedData.id).collection("menuItems").get(),
+                adminDb.collection("restaurants").doc(serializedData.id).collection("banners").orderBy("createdAt", "desc").get()
+            ]);
 
-    const initialBanners = bannersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(b => b.active);
+            initialCategories = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            initialMenuItems = menuItemsSnap.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    // Format dates
+                    discountEndsAt: data.discountEndsAt?.toMillis ? data.discountEndsAt.toMillis() : (data.discountEndsAt?._seconds ? data.discountEndsAt._seconds * 1000 : null),
+                };
+            }).filter(item => item.available !== false && item.isAvailable !== false);
+
+            initialBanners = bannersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(b => b.active);
+        } catch (e) {
+            console.error("Error pre-fetching data:", e);
+        }
+    }
 
     return (
         <MenuPage 
