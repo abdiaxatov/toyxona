@@ -25,6 +25,7 @@ export interface MenuItem {
   aliposId?: string;
   order?: number;
   isNew?: boolean;
+  videoUrl?: string;
 }
 
 export interface MenuItemVariant {

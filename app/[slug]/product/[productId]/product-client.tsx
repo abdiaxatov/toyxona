@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { ArrowLeft, Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight, Play } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { getLocalizedName } from "@/lib/localization"
 import { useCart } from "@/components/cart-provider"
@@ -12,6 +12,11 @@ import { cn } from "@/lib/utils"
 import { Drawer } from "vaul"
 import { motion, AnimatePresence } from "framer-motion"
 
+function getKinescopeEmbedUrl(url: string): string {
+    if (!url) return "";
+    const id = url.split('/').pop();
+    return `https://kinescope.io/embed/${id}`;
+}
 function VariantCard({ variant, product, language, primaryColor, onSelect }: any) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -127,6 +132,8 @@ function VariantCard({ variant, product, language, primaryColor, onSelect }: any
     )
 }
 
+
+
 export function ProductClient({ restaurant, product, slug }: { restaurant: any, product: any, slug: string }) {
     const router = useRouter()
     const { t, language } = useLanguage()
@@ -134,6 +141,7 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
 
     const [selectedVariant, setSelectedVariant] = useState<any | null>(null)
     const [drawerImageIndex, setDrawerImageIndex] = useState(0)
+    const [mainImageIndex, setMainImageIndex] = useState(0)
 
     useEffect(() => {
         setDrawerImageIndex(0)
@@ -142,22 +150,62 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
     const primaryColor = restaurant?.primaryColor || '#f43f5e'
     const productName = getLocalizedName(product, language)
 
-    const drawerImages = useMemo(() => {
+    const drawerMedia = useMemo(() => {
         if (!selectedVariant) return [];
-        if (selectedVariant.imageUrls && selectedVariant.imageUrls.length > 0) return selectedVariant.imageUrls;
-        if (product.imageUrls && product.imageUrls.length > 0) return product.imageUrls;
-        if (product.imageUrl) return [product.imageUrl];
-        return [];
+        const media: { type: 'image' | 'video', url: string }[] = [];
+        
+        if (product.videoUrl) {
+            media.push({ type: 'video', url: product.videoUrl });
+        }
+        
+        let images = [];
+        if (selectedVariant.imageUrls && selectedVariant.imageUrls.length > 0) {
+            images = selectedVariant.imageUrls;
+        } else if (product.imageUrls && product.imageUrls.length > 0) {
+            images = product.imageUrls;
+        } else if (product.imageUrl) {
+            images = [product.imageUrl];
+        }
+        
+        images.forEach(img => media.push({ type: 'image', url: img }));
+        return media;
     }, [selectedVariant, product]);
+
+    const mainMedia = useMemo(() => {
+        const media: { type: 'image' | 'video', url: string }[] = [];
+        if (product.videoUrl) {
+            media.push({ type: 'video', url: product.videoUrl });
+        }
+        
+        let images = [];
+        if (product.imageUrls && product.imageUrls.length > 0) {
+            images = product.imageUrls;
+        } else if (product.imageUrl) {
+            images = [product.imageUrl];
+        }
+        
+        images.forEach(img => media.push({ type: 'image', url: img }));
+        return media;
+    }, [product]);
+
+    const nextMainImage = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setMainImageIndex((prev) => (prev + 1) % mainMedia.length);
+    };
+
+    const prevMainImage = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setMainImageIndex((prev) => (prev - 1 + mainMedia.length) % mainMedia.length);
+    };
 
     const nextDrawerImage = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        setDrawerImageIndex((prev) => (prev + 1) % drawerImages.length);
+        setDrawerImageIndex((prev) => (prev + 1) % drawerMedia.length);
     };
 
     const prevDrawerImage = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        setDrawerImageIndex((prev) => (prev - 1 + drawerImages.length) % drawerImages.length);
+        setDrawerImageIndex((prev) => (prev - 1 + drawerMedia.length) % drawerMedia.length);
     };
 
     return (
@@ -174,12 +222,57 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                 <div className="w-10" />
             </div>
 
-            {/* Main Product Info */}
-            {product.imageUrl && (
-                <div className="w-full aspect-video relative bg-gray-100">
-                    <Image src={product.imageUrl} alt={productName} fill className="object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    <div className="absolute bottom-3 left-4 right-4">
+            {/* Main Product Info Carousel */}
+            {mainMedia.length > 0 && (
+                <div className="w-full aspect-video relative bg-gray-100 overflow-hidden">
+                    <AnimatePresence initial={false} mode="wait">
+                        <motion.div
+                            key={mainImageIndex}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="absolute inset-0"
+                        >
+                            {mainMedia[mainImageIndex].type === 'video' ? (
+                                <iframe
+                                    src={getKinescopeEmbedUrl(mainMedia[mainImageIndex].url)}
+                                    className="w-full h-full"
+                                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
+                                    frameBorder="0"
+                                    allowFullScreen
+                                />
+                            ) : (
+                                <Image src={mainMedia[mainImageIndex].url} alt={productName} fill className="object-cover" priority />
+                            )}
+                        </motion.div>
+                    </AnimatePresence>
+
+                    {mainMedia.length > 1 && (
+                        <>
+                            <button
+                                onClick={prevMainImage}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white z-10"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <button
+                                onClick={nextMainImage}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white z-10"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+
+                            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
+                                {mainMedia.map((_: any, i: number) => (
+                                    <div key={i} className={cn("h-1.5 rounded-full transition-all shadow-sm", i === mainImageIndex ? "w-5 bg-white" : "w-2 bg-white/50")} />
+                                ))}
+                            </div>
+                        </>
+                    )}
+
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                    <div className="absolute bottom-3 left-4 right-4 pointer-events-none">
                         <h2 className="text-white font-black text-xl leading-tight" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{productName}</h2>
                         <p className="text-white/90 text-xs font-medium mt-1">{language === 'uz' ? 'Variantni tanlang' : language === 'ru' ? 'Выберите вариант' : 'Select a variant'}</p>
                     </div>
@@ -245,7 +338,7 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                                     <div className="flex-1 overflow-y-auto pb-24">
                                         <div className="px-4 pb-6">
                                             <div className="relative w-full aspect-square bg-white rounded-[32px] overflow-hidden border border-black/5 shadow-sm mb-6">
-                                                {drawerImages.length > 0 ? (
+                                                {drawerMedia.length > 0 ? (
                                                     <AnimatePresence initial={false} mode="wait">
                                                         <motion.div
                                                             key={drawerImageIndex}
@@ -255,7 +348,19 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                                                             transition={{ duration: 0.2 }}
                                                             className="absolute inset-0"
                                                         >
-                                                            <Image src={drawerImages[drawerImageIndex]} alt={name} fill className="object-cover" />
+                                                            {drawerMedia[drawerImageIndex].type === 'video' ? (
+                                                                <div className="w-full h-full relative" style={{ paddingTop: '0%' }}>
+                                                                    <iframe
+                                                                        src={getKinescopeEmbedUrl(drawerMedia[drawerImageIndex].url)}
+                                                                        className="absolute inset-0 w-full h-full"
+                                                                        allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
+                                                                        frameBorder="0"
+                                                                        allowFullScreen
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <Image src={drawerMedia[drawerImageIndex].url} alt={name} fill className="object-cover" />
+                                                            )}
                                                         </motion.div>
                                                     </AnimatePresence>
                                                 ) : (
@@ -264,7 +369,7 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                                                     </div>
                                                 )}
 
-                                                {drawerImages.length > 1 && (
+                                                {drawerMedia.length > 1 && (
                                                     <>
                                                         <button
                                                             onClick={prevDrawerImage}
@@ -280,7 +385,7 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                                                         </button>
 
                                                         <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-                                                            {drawerImages.map((_: any, i: number) => (
+                                                            {drawerMedia.map((_: any, i: number) => (
                                                                 <div key={i} className={cn("h-1.5 rounded-full transition-all shadow-sm", i === drawerImageIndex ? "w-5 bg-white" : "w-2 bg-white/50")} />
                                                             ))}
                                                         </div>
@@ -314,10 +419,12 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                                                     <span className="text-sm font-bold text-gray-500 uppercase">
                                                         $
                                                     </span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Video Section removed since it's in the carousel */}
+                                </div>
 
                                     {/* Bottom Fixed Bar */}
                                     {/* <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-black/5 z-20 pb-safe">

@@ -4,6 +4,7 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
+import { motion } from "framer-motion"
 import { collection, doc, addDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { getRestaurantCollection, getRestaurantDoc } from "@/lib/firebase-utils"
@@ -16,12 +17,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, ImageIcon, CuboidIcon as Cube, X, Plus, Upload, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, ImageIcon, CuboidIcon as Cube, X, Plus, Upload, AlertTriangle, ChevronLeft, ChevronRight, Play } from "lucide-react"
 import type { MenuItem, Category } from "@/types"
 import { uploadToGitHub } from "@/lib/github-upload"
 import EmbeddedModelViewer from "@/components/embedded-3d-viewer"
 import { useRouter } from "next/navigation"
 import { useLanguage } from "@/hooks/use-language"
+import { uploadToKinescope } from "@/lib/kinescope-upload"
+
+function getKinescopeEmbedUrl(url: string): string {
+    if (!url) return "";
+    const id = url.split('/').pop();
+    return `https://kinescope.io/embed/${id}`;
+}
 
 interface MenuItemFormProps {
   item?: MenuItem | null
@@ -71,7 +79,13 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
     })),
     isNew: item?.isNew || false,
     remainingServings: (item?.remainingServings !== undefined && item?.remainingServings !== null) ? item.remainingServings.toString() : "",
+    videoUrl: item?.videoUrl || "",
   })
+
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [videoPreview, setVideoPreview] = useState<string | null>(item?.videoUrl || null)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isImageValid, setIsImageValid] = useState(false)
@@ -83,6 +97,7 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
   const [uploadingVariantIndexes, setUploadingVariantIndexes] = useState<number[]>([])
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [modelUrlError, setModelUrlError] = useState<string | null>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
 
   const { toast } = useToast()
   const { t, language } = useLanguage()
@@ -307,6 +322,56 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
     }
   }
 
+  const uploadVideoFile = async (file: File) => {
+    setIsUploadingVideo(true)
+    setUploadProgress(0)
+    try {
+      const name = formData.name_uz || formData.name || "Product Video"
+      const result = await uploadToKinescope(file, name, (progress) => {
+        setUploadProgress(progress)
+      })
+      if (result.success && result.url) {
+        setFormData(prev => ({ ...prev, videoUrl: result.url! }))
+        setVideoPreview(result.url!)
+        toast({
+          title: "Video muvaffaqiyatli yuklandi",
+          description: "Kinescope platformasiga saqlandi",
+        })
+      } else {
+        throw new Error(result.error || "Video yuklashda xatolik")
+      }
+    } catch (error: any) {
+      console.error("Video upload error:", error)
+      toast({
+        title: "Xatolik",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploadingVideo(false)
+      setUploadProgress(0)
+    }
+  }
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      
+      // 1GB limit
+      if (file.size > 1024 * 1024 * 1024) {
+        toast({
+          title: "Xatolik",
+          description: "Video hajmi 1GB dan oshmasligi kerak",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setVideoFile(file)
+      uploadVideoFile(file)
+    }
+  }
+
   const uploadImageFile = async (file: File) => {
     setIsUploadingImage(true)
     try {
@@ -456,6 +521,7 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
         })),
         isNew: formData.isNew,
         remainingServings: formData.remainingServings ? Number(formData.remainingServings) : null,
+        videoUrl: formData.videoUrl || null,
       }
 
 
@@ -578,39 +644,131 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
               </div>
             </div>
 
-            {/* 3D Model Preview */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Cube className="w-4 h-4 text-primary" />
-                3D Model
-                {modelUrlError && (
-                  <span className="text-xs text-red-500 bg-red-100 px-2 py-1 rounded-full flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" />
-                    {t("common.error")}
-                  </span>
-                )}
-              </Label>
-              <div className="relative h-48 bg-gradient-to-br bg-white rounded-xl border-2 border-dashed border-gray-300 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                {isUploadingModel ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/90">
-                    <div className="text-center">
-                      <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
-                      <p className="text-sm text-gray-600 font-medium">{t("admin.form.modelUploading")}</p>
+            {/* 3D Model & Video Preview */}
+            <div className="space-y-6">
+              {/* 3D Model Preview */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Cube className="w-4 h-4 text-primary" />
+                  3D Model
+                  {modelUrlError && (
+                    <span className="text-xs text-red-500 bg-red-100 px-2 py-1 rounded-full flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      {t("common.error")}
+                    </span>
+                  )}
+                </Label>
+                <div className="relative h-48 bg-gradient-to-br bg-white rounded-xl border-2 border-dashed border-gray-300 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                  {isUploadingModel ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/90">
+                      <div className="text-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+                        <p className="text-sm text-gray-600 font-medium">{t("admin.form.modelUploading")}</p>
+                      </div>
                     </div>
+                  ) : (
+                    <EmbeddedModelViewer modelUrl={formData.modelUrl} className="w-full h-full" />
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    id="model-upload"
+                    type="file"
+                    accept=".glb,.gltf"
+                    onChange={handleModelFileChange}
+                    className="hidden"
+                    ref={modelInputRef}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-10 border-dashed border-2 hover:border-primary hover:bg-primary/5 transition-all"
+                    onClick={() => modelInputRef.current?.click()}
+                    disabled={isUploadingModel}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {t("admin.form.uploadModel")}
+                  </Button>
+                </div>
+                {modelUrlError && (
+                  <div className="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                    <div className="flex items-center gap-2 font-medium mb-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      {t("admin.form.errors.modelUrlError")}
+                    </div>
+                    <p>{modelUrlError}</p>
                   </div>
-                ) : (
-                  <EmbeddedModelViewer modelUrl={formData.modelUrl} className="w-full h-full" />
                 )}
               </div>
-              {modelUrlError && (
-                <div className="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
-                  <div className="flex items-center gap-2 font-medium mb-1">
-                    <AlertTriangle className="w-3 h-3" />
-                    {t("admin.form.errors.modelUrlError")}
-                  </div>
-                  <p>{modelUrlError}</p>
+
+              {/* Video Preview & Upload */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Play className="w-4 h-4 text-blue-600" />
+                  Video (Kinescope)
+                </Label>
+                <div 
+                  className={cn(
+                    "relative h-48 bg-white rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-all cursor-pointer overflow-hidden group shadow-sm hover:shadow-md",
+                    videoPreview ? "border-blue-500/50 bg-blue-50/10" : "border-gray-300 hover:border-blue-300 hover:bg-slate-50"
+                  )}
+                  onClick={() => !isUploadingVideo && !videoPreview && videoInputRef.current?.click()}
+                >
+                  {isUploadingVideo ? (
+                    <div className="flex flex-col items-center justify-center w-full px-6">
+                      <div className="relative w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+                        <motion.div 
+                          className="absolute inset-y-0 left-0 bg-blue-600"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                        <p className="text-sm font-bold text-slate-700">{uploadProgress}% yuklandi</p>
+                      </div>
+                    </div>
+                  ) : videoPreview ? (
+                    <div className="w-full h-full relative group/vpreview">
+                      <iframe
+                        src={getKinescopeEmbedUrl(videoPreview)}
+                        className="w-full h-full"
+                        allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
+                        frameBorder="0"
+                        allowFullScreen
+                      />
+                      <div className="absolute top-2 right-2 opacity-0 group-hover/vpreview:opacity-100 transition-opacity">
+                         <Button 
+                           type="button"
+                           variant="destructive" 
+                           size="icon" 
+                           className="h-8 w-8 rounded-full shadow-lg"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setVideoPreview(null);
+                             setFormData(prev => ({ ...prev, videoUrl: "" }));
+                           }}
+                         >
+                           <X className="h-4 w-4" />
+                         </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full w-full">
+                      <Play className="w-10 h-10 text-slate-300 mb-2" />
+                      <p className="text-sm font-medium text-slate-400">Video tanlash</p>
+                    </div>
+                  )}
+                  <input 
+                    ref={videoInputRef}
+                    type="file" 
+                    accept="video/*" 
+                    onChange={handleVideoChange} 
+                    className="hidden" 
+                    disabled={isUploadingVideo} 
+                  />
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>

@@ -15,6 +15,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Save, X, Utensils, Gem, Info, Image as ImageIcon } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { uploadToKinescope } from "@/lib/kinescope-upload"
+import { Play } from "lucide-react"
 
 interface MenuItem {
   id?: string
@@ -27,6 +29,7 @@ interface MenuItem {
   needsContainer: boolean
   isNew?: boolean
   isService?: boolean
+  videoUrl?: string
 }
 
 interface MenuItemFormProps {
@@ -50,6 +53,9 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [newCategory, setNewCategory] = useState("")
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false)
+  const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [videoPreview, setVideoPreview] = useState(item?.videoUrl || "")
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -76,6 +82,14 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
       const file = e.target.files[0]
       setImage(file)
       setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setVideoFile(file)
+      setVideoPreview(URL.createObjectURL(file))
     }
   }
 
@@ -131,12 +145,31 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
         imageUrl = await getDownloadURL(storageRef)
       }
 
+      let videoUrl = item?.videoUrl || ""
+      if (videoFile) {
+        setIsUploadingVideo(true)
+        const result = await uploadToKinescope(videoFile, name)
+        if (result.success && result.url) {
+          videoUrl = result.url
+        } else {
+          toast({
+            title: "Video yuklashda xatolik",
+            description: result.error || "Noma'lum xatolik",
+            variant: "destructive",
+          })
+          // Don't stop the whole process if video fails? 
+          // Actually, let's keep going but without the video.
+        }
+        setIsUploadingVideo(false)
+      }
+
       const menuItemData = {
         name,
         description,
         price: Number(price),
         category,
         image: imageUrl,
+        videoUrl,
         available,
         needsContainer,
         isNew,
@@ -292,6 +325,42 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
               placeholder="Mahsulot yoki xizmat haqida..."
               className="rounded-xl border-2 focus:ring-primary/20 min-h-[100px]"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="video" className="text-xs font-black uppercase tracking-widest text-zinc-400">Video (Kinescope)</Label>
+            <div 
+              className={cn(
+                "relative h-32 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center transition-all cursor-pointer overflow-hidden group",
+                videoPreview ? "border-primary/50 bg-primary/5" : "border-zinc-200 hover:border-primary/30 hover:bg-zinc-50"
+              )}
+              onClick={() => document.getElementById('video-upload')?.click()}
+            >
+              {isUploadingVideo ? (
+                <div className="flex flex-col items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin mb-2" />
+                  <span className="text-[10px] font-black text-zinc-500 uppercase">Yuklanmoqda...</span>
+                </div>
+              ) : videoPreview ? (
+                <>
+                  <div className="flex flex-col items-center justify-center h-full w-full bg-zinc-900/10">
+                    <Play className="w-8 h-8 text-primary mb-2" />
+                    <span className="text-[10px] font-black text-zinc-500 uppercase px-2 text-center truncate w-full">
+                      {videoFile ? videoFile.name : "Video yuklangan"}
+                    </span>
+                  </div>
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Play className="w-8 h-8 text-white" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Play className="w-8 h-8 text-zinc-300 mb-2" />
+                  <span className="text-[10px] font-black text-zinc-400 uppercase">Video yuklash</span>
+                </>
+              )}
+              <input id="video-upload" type="file" accept="video/*" onChange={handleVideoChange} className="hidden" disabled={isUploadingVideo} />
+            </div>
           </div>
         </div>
       </div>

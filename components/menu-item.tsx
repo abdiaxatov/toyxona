@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { Eye, Loader2, ChevronLeft, ChevronRight, Box, Plus, Minus, ShoppingCart } from "lucide-react";
+import { Eye, Loader2, ChevronLeft, ChevronRight, Box, Plus, Minus, ShoppingCart, Play } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/components/cart-provider";
 
@@ -33,6 +33,12 @@ interface MenuItemProps {
 
 const MotionCard = motion(Card);
 
+function getKinescopeEmbedUrl(url: string): string {
+  if (!url) return "";
+  const id = url.split('/').pop();
+  return `https://kinescope.io/embed/${id}`;
+}
+
 export const MenuItemComponent = React.memo(function MenuItemComponent({
   item,
   priority = false,
@@ -49,17 +55,24 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
   const pathname = usePathname();
   const { t, language } = useLanguage();
 
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
-  const images = useMemo(() => {
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls;
-    if (item.imageUrl) return [item.imageUrl];
-    return ["/placeholder.svg"];
-  }, [item.imageUrls, item.imageUrl]);
+  const media = useMemo(() => {
+    const res: { type: 'image' | 'video', url: string }[] = [];
+    if (item.videoUrl) {
+      res.push({ type: 'video', url: item.videoUrl });
+    }
+    if (item.imageUrls && item.imageUrls.length > 0) {
+      item.imageUrls.forEach(url => res.push({ type: 'image', url }));
+    } else if (item.imageUrl) {
+      res.push({ type: 'image', url: item.imageUrl });
+    }
+    return res;
+  }, [item.imageUrls, item.imageUrl, item.videoUrl]);
 
   const optimizedUrls = useMemo(
-    () => images.map(url => optimizeImage(url, 400)),
-    [images]
+    () => media.map(m => m.type === 'image' ? optimizeImage(m.url, 400) : m.url),
+    [media]
   );
 
   // Fix: Only mark as out of stock if values are explicitly provided and <= 0
@@ -85,13 +98,13 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
 
   const nextImage = useCallback((e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  }, [images.length]);
+    setCurrentMediaIndex((prev) => (prev + 1) % media.length);
+  }, [media.length]);
 
   const prevImage = useCallback((e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  }, [images.length]);
+    setCurrentMediaIndex((prev) => (prev - 1 + media.length) % media.length);
+  }, [media.length]);
 
   const isCompact = columns >= 3;
 
@@ -126,7 +139,7 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
         <div className="absolute inset-0">
           <AnimatePresence mode="wait">
             <motion.div
-              key={currentImageIndex}
+              key={currentMediaIndex}
               initial={{ opacity: 0, scale: 1.1 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -134,27 +147,40 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
               className="absolute inset-0 z-10"
               style={{ transformOrigin: "center center" }}
             >
-              <Image
-                src={optimizedUrls[currentImageIndex]}
-                alt={getLocalizedName(item, language)}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-                loading={priority ? "eager" : "lazy"}
-                priority={priority}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  if (target.src !== images[currentImageIndex]) {
-                    target.src = images[currentImageIndex];
-                  }
-                }}
-              />
+              {media[currentMediaIndex].type === 'video' ? (
+                <div className="w-full h-full bg-black relative">
+                  <iframe
+                    src={`${getKinescopeEmbedUrl(media[currentMediaIndex].url)}?autoplay=0`}
+                    className="absolute inset-0 w-full h-full"
+                    allow="fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer;"
+                    frameBorder="0"
+                  />
+                  {/* Overlay to allow clicking the card */}
+                  <div className="absolute inset-0 z-20" />
+                </div>
+              ) : (
+                <Image
+                  src={optimizedUrls[currentMediaIndex]}
+                  alt={getLocalizedName(item, language)}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                  loading={priority ? "eager" : "lazy"}
+                  priority={priority}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.src !== media[currentMediaIndex].url) {
+                      target.src = media[currentMediaIndex].url;
+                    }
+                  }}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
 
         {/* Carousel Navigation Arrows */}
-        {images.length > 1 && (
+        {media.length > 1 && (
           <div className="absolute inset-0 flex items-center justify-between px-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
             <Button
               variant="ghost"
@@ -244,20 +270,26 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
               )}
             </Button>
           )}
+
+          {item.videoUrl && (
+            <div className="pointer-events-auto flex items-center justify-center h-8 w-8 rounded-full bg-primary/90 backdrop-blur-md text-white shadow-lg scale-90 group-hover:scale-100 transition-all">
+              <Play className="h-4 w-4 fill-white" />
+            </div>
+          )}
         </div>
 
-        {images.length > 1 && (
+        {media.length > 1 && (
           <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5 z-20 pointer-events-auto">
-            {images.map((_, i) => (
+            {media.map((_, i) => (
               <button
                 key={i}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setCurrentImageIndex(i);
+                  setCurrentMediaIndex(i);
                 }}
                 className={cn(
                   "h-1.5 rounded-full transition-all duration-300 shadow-sm",
-                  currentImageIndex === i ? "w-6 bg-white" : "w-1.5 bg-white/40 hover:bg-white/60"
+                  currentMediaIndex === i ? "w-6 bg-white" : "w-1.5 bg-white/40 hover:bg-white/60"
                 )}
               />
             ))}

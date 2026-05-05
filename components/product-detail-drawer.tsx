@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
     Loader2, Minus, Plus, RotateCcw, Edit, Trash2, Scale,
     Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight,
-    Box, ShoppingCart
+    Box, ShoppingCart, Play
 } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { useRouter } from "next/navigation";
@@ -40,6 +40,13 @@ interface ProductDetailDrawerProps {
     onOrderTelegram?: () => void;
 }
 
+function getKinescopeEmbedUrl(url: string): string {
+    if (!url) return "";
+    // Handle both kinescope.io/ID and kinescope.io/embed/ID
+    const id = url.split('/').pop();
+    return `https://kinescope.io/embed/${id}`;
+}
+
 export function ProductDetailDrawer({
     item,
     isOpen,
@@ -63,7 +70,7 @@ export function ProductDetailDrawer({
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [modalImageLoading, setModalImageLoading] = useState(true);
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
@@ -85,7 +92,7 @@ export function ProductDetailDrawer({
             setZoomLevel(1);
             setPan({ x: 0, y: 0 });
             setModalImageLoading(true);
-            setCurrentImageIndex(0);
+            setCurrentMediaIndex(0);
             setSelectedVariantId(item.variants?.[0]?.id || null);
 
             // Track Dish View
@@ -168,14 +175,14 @@ export function ProductDetailDrawer({
             const dx = e.clientX - dragStartRef.current.x;
             const dy = e.clientY - dragStartRef.current.y;
             if (Math.abs(dx) > 40 && Math.abs(dy) < 100) {
-                const count = item?.imageUrls?.length || 1;
+                const count = media.length;
                 if (dx > 0) {
-                    currentImageIndex > 0
-                        ? (setCurrentImageIndex(p => p - 1), setModalImageLoading(true))
+                    currentMediaIndex > 0
+                        ? (setCurrentMediaIndex(p => p - 1), setModalImageLoading(true))
                         : onPrev();
                 } else {
-                    currentImageIndex < count - 1
-                        ? (setCurrentImageIndex(p => p + 1), setModalImageLoading(true))
+                    currentMediaIndex < count - 1
+                        ? (setCurrentMediaIndex(p => p + 1), setModalImageLoading(true))
                         : onNext();
                 }
             }
@@ -193,11 +200,12 @@ export function ProductDetailDrawer({
     /* ── Save / download image ── */
     const handleSaveImage = async () => {
         if (!item || isSaving) return;
+        const currentMedia = media[currentMediaIndex];
+        if (!currentMedia || currentMedia.type !== 'image') return;
+
         setIsSaving(true);
         try {
-            const src = (item.imageUrls && item.imageUrls.length > 0)
-                ? item.imageUrls[currentImageIndex]
-                : item.imageUrl!;
+            const src = currentMedia.url;
             const res = await fetch(src);
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
@@ -207,10 +215,7 @@ export function ProductDetailDrawer({
             a.click();
             URL.revokeObjectURL(url);
         } catch {
-            // fallback: open in new tab
-            const src = (item.imageUrls && item.imageUrls.length > 0)
-                ? item.imageUrls[currentImageIndex]
-                : item.imageUrl!;
+            const src = currentMedia.url;
             window.open(src, "_blank");
         } finally {
             setIsSaving(false);
@@ -219,12 +224,18 @@ export function ProductDetailDrawer({
 
     if (!item) return null;
 
-    const currentPrice = item.price;
-    const imageSrc = optimizeImage(
-        (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls[currentImageIndex] : item.imageUrl!,
-        1200
-    );
-    const hasMultipleImages = item.imageUrls && item.imageUrls.length > 1;
+    const media = [
+        ...(item.videoUrl ? [{ type: 'video', url: item.videoUrl } as const] : []),
+        ...(item.imageUrls && item.imageUrls.length > 0 
+            ? item.imageUrls.map(url => ({ type: 'image', url } as const))
+            : item.imageUrl 
+                ? [{ type: 'image', url: item.imageUrl } as const]
+                : [])
+    ];
+
+    const currentMedia = media[currentMediaIndex] || { type: 'image', url: item.imageUrl || "" };
+    const imageSrc = currentMedia.type === 'image' ? optimizeImage(currentMedia.url, 1200) : "";
+    const hasMultipleMedia = media.length > 1;
 
     return (
         <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()} shouldScaleBackground={false}>
@@ -259,14 +270,16 @@ export function ProductDetailDrawer({
                 </button>
 
                 {/* Save image */}
-                <button
-                    onClick={handleSaveImage}
-                    disabled={isSaving}
-                    className="absolute top-4 right-16 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-black/10 text-gray-800 backdrop-blur-md border border-black/10 transition-transform active:scale-90 hover:bg-black/15 disabled:opacity-50"
-                    title="Rasmni saqlash"
-                >
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                </button>
+                {currentMedia.type === 'image' && (
+                    <button
+                        onClick={handleSaveImage}
+                        disabled={isSaving}
+                        className="absolute top-4 right-16 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-black/10 text-gray-800 backdrop-blur-md border border-black/10 transition-transform active:scale-90 hover:bg-black/15 disabled:opacity-50"
+                        title="Rasmni saqlash"
+                    >
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    </button>
+                )}
 
                 {/* Admin actions */}
                 {isAdmin && (
@@ -317,53 +330,65 @@ export function ProductDetailDrawer({
                     >
                         <AnimatePresence mode="wait">
                             <motion.div
-                                key={currentImageIndex}
+                                key={currentMediaIndex}
                                 initial={{ opacity: 0, scale: 0.96 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 1.04 }}
                                 transition={{ duration: 0.28 }}
                                 className="relative w-full h-full"
                             >
-                                <Image
-                                    src={imageSrc}
-                                    alt={getLocalizedName(item, language)}
-                                    fill
-                                    className="object-contain pointer-events-none select-none drop-shadow-2xl"
-                                    sizes="100vw"
-                                    priority
-                                    onLoad={handleModalImageLoad}
-                                    draggable={false}
-                                />
+                                {currentMedia.type === 'video' ? (
+                                    <div className="w-full h-full bg-black flex items-center justify-center">
+                                        <iframe
+                                            src={getKinescopeEmbedUrl(currentMedia.url)}
+                                            className="w-full h-full"
+                                            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
+                                            frameBorder="0"
+                                            allowFullScreen
+                                        />
+                                    </div>
+                                ) : (
+                                    <Image
+                                        src={imageSrc}
+                                        alt={getLocalizedName(item, language)}
+                                        fill
+                                        className="object-contain pointer-events-none select-none drop-shadow-2xl"
+                                        sizes="100vw"
+                                        priority
+                                        onLoad={handleModalImageLoad}
+                                        draggable={false}
+                                    />
+                                )}
                             </motion.div>
                         </AnimatePresence>
                     </div>
 
                     {/* Pagination dots */}
-                    {hasMultipleImages && (
+                    {hasMultipleMedia && (
                         <div className="absolute bottom-3 left-0 right-0 z-20 flex justify-center gap-1.5 pointer-events-none">
-                            {item.imageUrls!.map((_, i) => (
+                            {media.map((_, i) => (
                                 <div
                                     key={i}
                                     className={cn(
                                         "h-1 rounded-full transition-all duration-300",
-                                        currentImageIndex === i ? "w-6 bg-white shadow-lg" : "w-1.5 bg-white/30"
+                                        currentMediaIndex === i ? "w-6 bg-white shadow-lg" : "w-1.5 bg-white/30"
                                     )}
                                 />
                             ))}
                         </div>
                     )}
 
-                    {/* Prev/Next arrows (multi-image) */}
-                    {hasMultipleImages && zoomLevel === 1 && (
+                    {/* Prev/Next arrows (multi-media) */}
+                    {hasMultipleMedia && zoomLevel === 1 && (
                         <>
                             <button
-                                onClick={() => { if (currentImageIndex > 0) { setCurrentImageIndex(p => p - 1); setModalImageLoading(true); } else onPrev(); }}
+                                onClick={() => { if (currentMediaIndex > 0) { setCurrentMediaIndex(p => p - 1); setModalImageLoading(true); } else onPrev(); }}
                                 className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/50 transition-colors"
                             >
                                 <ChevronLeft className="h-5 w-5" />
                             </button>
                             <button
-                                onClick={() => { const c = item.imageUrls!.length; if (currentImageIndex < c - 1) { setCurrentImageIndex(p => p + 1); setModalImageLoading(true); } else onNext(); }}
+                                onClick={() => { const c = media.length; if (currentMediaIndex < c - 1) { setCurrentMediaIndex(p => p + 1); setModalImageLoading(true); } else onNext(); }}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/50 transition-colors"
                             >
                                 <ChevronRight className="h-5 w-5" />
@@ -427,7 +452,7 @@ export function ProductDetailDrawer({
                         </motion.div>
 
                         {/* Price (simple items only) */}
-                        {(!item.variants || item.variants.length === 0) && !!currentPrice && currentPrice > 0 && (
+                        {(!item.variants || item.variants.length === 0) && !!item.price && item.price > 0 && (
                             <motion.div
                                 className="flex items-center gap-2"
                                 initial={{ y: 12, opacity: 0 }}
@@ -436,7 +461,7 @@ export function ProductDetailDrawer({
                             >
                                 <div className="bg-black/[0.04] px-4 py-2 rounded-xl border border-black/[0.08] backdrop-blur-sm">
                                     <PriceDisplay
-                                        price={currentPrice}
+                                        price={item.price}
                                         discountPrice={
                                             (item.discountEndsAt && new Date(item.discountEndsAt) > new Date())
                                                 ? item.discountPrice
@@ -623,6 +648,8 @@ export function ProductDetailDrawer({
                                 </Button>
                             </motion.div>
                         )}
+                        {/* Kinescope Video removed from bottom as it is now in the top carousel */}
+
                         {/* Add to Cart Button */}
                         {isOrderingEnabled && (!item.variants || item.variants.length === 0) && (
                             <motion.div
