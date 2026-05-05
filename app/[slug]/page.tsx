@@ -55,7 +55,7 @@ export default async function RestaurantMenuPage({ params }: PageProps) {
 
     const restaurantData = await getRestaurantBySlug(slug)
 
-    if (!restaurantData || restaurantData.status !== 'active') {
+    if (!restaurantData || restaurantData.status === 'deleted') {
         notFound()
     }
 
