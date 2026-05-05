@@ -3,7 +3,11 @@ import { NextRequest, NextResponse } from "next/server"
 export async function POST(req: NextRequest) {
   try {
     const { title, filename, filesize } = await req.json()
-    const token = "d8ac7e05-4df2-4cc4-b986-283863955de8"
+    const token = process.env.KINESCOPE_API_TOKEN
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: "KINESCOPE_API_TOKEN is not configured" }, { status: 500 })
+    }
 
     // 1. Get project ID first
     const projectsResponse = await fetch("https://api.kinescope.io/v1/projects", {
