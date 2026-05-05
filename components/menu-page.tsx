@@ -927,9 +927,9 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
   }, [primaryColor]);
 
 
-  if (restaurantData?.status === 'maintenance' || restaurantData?.isMaintenance) {
+  /* if (restaurantData?.status === 'maintenance' || restaurantData?.isMaintenance) {
     return <MaintenancePage restaurantName={restaurantData?.name} logoUrl={restaurantData?.logoUrl} />;
-  }
+  } */
 
   return (
     <div
