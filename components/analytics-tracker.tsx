@@ -154,16 +154,16 @@ export default function AnalyticsTracker({ restaurantId }: { restaurantId?: stri
 
         // 2. Set Session Data
         if (isNewSession) {
-            set(globalSessionRef, sessionData)
-            if (restSessionRef) set(restSessionRef, sessionData)
+            set(globalSessionRef, sessionData).catch(e => console.warn("Analytics skipped:", e))
+            if (restSessionRef) set(restSessionRef, sessionData).catch(e => console.warn("Analytics skipped:", e))
         } else {
             // Update Global typically just needs activity update
-            update(globalSessionRef, updateData)
+            update(globalSessionRef, updateData).catch(e => console.warn("Analytics skipped:", e))
 
             // For Restaurant: It might be the FIRST time we see this session in THIS restaurant context.
             // So we should perform a 'set' (or update with full data) to ensure the node exists with start time.
             // Using 'update' with full sessionData merges everything safely.
-            if (restSessionRef) update(restSessionRef, sessionData)
+            if (restSessionRef) update(restSessionRef, sessionData).catch(e => console.warn("Analytics skipped:", e))
         }
 
         // 3. Online Presence with Heartbeat
@@ -197,8 +197,8 @@ export default function AnalyticsTracker({ restaurantId }: { restaurantId?: stri
                     restaurantId: restaurantId || null
                 }
 
-                set(globalOnlineRef, onlineData)
-                if (restOnlineRef) set(restOnlineRef, onlineData)
+                set(globalOnlineRef, onlineData).catch(e => console.warn("Analytics skipped:", e))
+                if (restOnlineRef) set(restOnlineRef, onlineData).catch(e => console.warn("Analytics skipped:", e))
             }
         })
 
@@ -210,16 +210,16 @@ export default function AnalyticsTracker({ restaurantId }: { restaurantId?: stri
         }
 
         const globalPageViewRef = ref(rtdb, `analytics/sessions/${today}/${sessionId}/pages`)
-        push(globalPageViewRef, pageViewData)
+        push(globalPageViewRef, pageViewData).catch(e => console.warn("Analytics skipped:", e))
 
         if (rid) {
             const restPageViewRef = ref(rtdb, `analytics/restaurants/${rid}/sessions/${today}/${sessionId}/pages`)
-            push(restPageViewRef, pageViewData)
+            push(restPageViewRef, pageViewData).catch(e => console.warn("Analytics skipped:", e))
         }
 
         // Update current path in online status
-        update(globalOnlineRef, { path: fullPath }) // Use fullPath
-        if (restOnlineRef) update(restOnlineRef, { path: fullPath }) // Use fullPath
+        update(globalOnlineRef, { path: fullPath }).catch(e => console.warn("Analytics skipped:", e)) // Use fullPath
+        if (restOnlineRef) update(restOnlineRef, { path: fullPath }).catch(e => console.warn("Analytics skipped:", e)) // Use fullPath
 
         return () => {
             unsubConnected()

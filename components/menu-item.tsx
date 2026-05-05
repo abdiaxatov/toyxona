@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { Eye, Loader2, ChevronLeft, ChevronRight, Box, Plus, Minus, ShoppingCart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,8 +46,7 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
   onOrderTelegram,
 }: MenuItemProps) {
   const router = useRouter();
-  const { addToCart, getItemQuantity, updateItemQuantity } = useCart();
-  const [is3DLoading, setIs3DLoading] = useState(false);
+  const pathname = usePathname();
   const { t, language } = useLanguage();
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -98,7 +97,14 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
 
   return (
     <MotionCard
-      onClick={onClick}
+      onClick={(e) => {
+        if (item.variants && item.variants.length > 0) {
+          const cleanPath = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+          router.push(`${cleanPath}/product/${item.id}`);
+        } else {
+          onClick?.();
+        }
+      }}
       whileHover={{ y: -8 }}
       whileTap={{ scale: 0.96 }}
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
@@ -358,12 +364,16 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
             // If we ARE in the Telegram Web App, we allow normal ordering.
             const forceTelegramDrawer = isTelegramOrderOnly && !isTelegramWebApp;
 
-            if (forceTelegramDrawer || hasVariants || quantity === 0) {
+            if (hasVariants) {
+              return null; // Return nothing, no add button for variants
+            }
+
+            if (forceTelegramDrawer || quantity === 0) {
               const buttonText = forceTelegramDrawer 
                 ? (language === 'uz' ? (columns >= 4 ? "Buyurtma" : "Buyurtma berish") : language === 'ru' ? "Заказать" : "Order")
-                : (language === 'uz' ? (columns >= 4 ? "Buyurtma" : "Buyurtma berish")
-                  : language === 'ru' ? (columns >= 4 ? "Заказать" : "Купить")
-                  : "Order Now");
+                : (language === 'uz' ? (columns >= 4 ? "Qo'shish" : "Qo'shish")
+                  : language === 'ru' ? (columns >= 4 ? "Добавить" : "В корзину")
+                  : "Add");
                 
               return (
                 <Button
@@ -376,8 +386,6 @@ export const MenuItemComponent = React.memo(function MenuItemComponent({
                     e.stopPropagation();
                     if (forceTelegramDrawer) {
                       onOrderTelegram?.();
-                    } else if (hasVariants) {
-                      onClick?.();
                     } else {
                       addToCart(item);
                     }

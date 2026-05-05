@@ -99,7 +99,7 @@ export function ProductDetailDrawer({
                         path: `dish:${item.id}`,
                         title: item.name_uz || item.name,
                         timestamp: serverTimestamp()
-                    });
+                    }).catch((e) => console.warn("Analytics write skipped:", e));
 
                     // Restaurant specific session task if available
                     const targetRestId = propRestId || authRestId;
@@ -109,7 +109,7 @@ export function ProductDetailDrawer({
                             path: `dish:${item.id}`,
                             title: item.name_uz || item.name,
                             timestamp: serverTimestamp()
-                        });
+                        }).catch((e) => console.warn("Analytics write skipped:", e));
                     }
                 } catch (e) {
                     console.error("Tracking error:", e);
@@ -454,25 +454,25 @@ export function ProductDetailDrawer({
                             </motion.div>
                         )}
 
-                        {/* Variants — compact 2-col grid */}
+                        {/* Variants — Vertical list like menu items */}
                         {item.variants && item.variants.length > 0 && (
                             <motion.div
-                                className="space-y-2.5"
+                                className="space-y-3"
                                 initial={{ y: 14, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ duration: 0.38, delay: 0.18 }}
                             >
                                 {/* Label */}
-                                <div className="flex items-center gap-2">
-                                    <Scale className="w-3 h-3 text-primary/60" />
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.22em]">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Scale className="w-4 h-4 text-primary/60" />
+                                    <span className="text-xs font-black text-gray-500 uppercase tracking-[0.15em]">
                                         {t("menu.variants")}
                                     </span>
                                     <div className="h-px flex-1 bg-black/10" />
                                 </div>
 
-                                {/* Grid */}
-                                <div className="grid grid-cols-2 gap-2" data-vaul-no-drag>
+                                {/* List */}
+                                <div className="grid grid-cols-2 gap-2.5 md:gap-4 pb-4" data-vaul-no-drag>
                                     {item.variants.map((variant, idx) => {
                                         const name = getLocalizedName(variant, language);
                                         const unit = variant.unit || (/^\d+$/.test(name) ? 'gr' : '');
@@ -488,56 +488,101 @@ export function ProductDetailDrawer({
                                         const displayPrice = hasDiscount ? variant.discountPrice! : variant.price;
                                         const discountPercent = hasDiscount ? Math.round((1 - variant.discountPrice! / variant.price) * 100) : 0;
 
+                                        const cartItemId = `${item.id}-${variant.id}`;
+                                        const quantity = getItemQuantity(cartItemId);
+                                        const stockRaw = item.remainingServings;
+                                        const hasStockLimit = stockRaw !== undefined && stockRaw !== null;
+                                        const stockNum = hasStockLimit ? Number(stockRaw) : Infinity;
+                                        const isAtMax = hasStockLimit && quantity >= stockNum;
+
+                                        const img = (variant.imageUrls && variant.imageUrls.length > 0)
+                                            ? variant.imageUrls[0]
+                                            : (item.imageUrls && item.imageUrls.length > 0)
+                                                ? item.imageUrls[0]
+                                                : item.imageUrl;
+
                                         return (
                                             <motion.div
                                                 key={variant.id}
                                                 initial={{ y: 10, opacity: 0 }}
                                                 animate={{ y: 0, opacity: 1 }}
                                                 transition={{ duration: 0.3, delay: 0.2 + idx * 0.05 }}
-                                                onClick={() => setSelectedVariantId(variant.id)}
-                                                className={cn(
-                                                    "relative flex flex-col items-start gap-1 px-3 py-2.5 rounded-xl border backdrop-blur-sm transition-all duration-300 cursor-pointer",
-                                                    selectedVariantId === variant.id 
-                                                        ? "border-primary ring-2 ring-primary/20 bg-primary/5" 
-                                                        : hasDiscount
-                                                            ? "bg-red-50/40 border-red-100 ring-1 ring-red-50 shadow-sm"
-                                                            : "bg-black/5 border-black/10"
-                                                )}
+                                                className="relative flex flex-col bg-white rounded-[20px] border border-black/5 shadow-sm overflow-hidden"
                                             >
-                                                {hasDiscount && (
-                                                    <div className="absolute top-1.5 right-1.5 bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
-                                                        -{discountPercent}%
-                                                    </div>
-                                                )}
-                                                <span className={cn(
-                                                    "text-[11px] font-semibold leading-none truncate w-[85%]",
-                                                    selectedVariantId === variant.id ? "text-primary" : hasDiscount ? "text-red-900/60" : "text-gray-500"
-                                                )}>
-                                                    {displayName}
-                                                </span>
-                                                {displayPrice > 0 && (
-                                                    <div className="flex flex-col gap-0.5 mt-0.5">
-                                                        {hasDiscount && (
-                                                            <span className="text-[10px] font-bold text-gray-400 line-through decoration-red-500/50 leading-none">
-                                                                {variant.price.toLocaleString()}
-                                                            </span>
-                                                        )}
-                                                        <div className="flex items-baseline gap-0.5">
-                                                            <span className={cn(
-                                                                "text-base font-black tabular-nums leading-none",
-                                                                selectedVariantId === variant.id ? "text-primary" : hasDiscount ? "text-red-600" : "text-gray-900"
-                                                            )}>
-                                                                {displayPrice.toLocaleString()}
-                                                            </span>
-                                                            <span className={cn(
-                                                                "text-[9px] font-bold uppercase ml-0.5 leading-none",
-                                                                selectedVariantId === variant.id ? "text-primary/60" : hasDiscount ? "text-red-600/60" : "text-primary/60"
-                                                            )}>
-                                                                "$"
-                                                            </span>
+                                                {/* Variant Image */}
+                                                <div className="relative aspect-square w-full bg-gray-50 flex items-center justify-center">
+                                                    {img ? (
+                                                        <Image src={img} alt={name} fill className="object-cover" sizes="50vw" />
+                                                    ) : (
+                                                        <Box className="w-8 h-8 text-gray-300" />
+                                                    )}
+                                                    {hasDiscount && (
+                                                        <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
+                                                            -{discountPercent}%
                                                         </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Variant Info */}
+                                                <div className="p-2.5 flex flex-col flex-1">
+                                                    <h4 className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2 mb-1.5 min-h-[26px]">
+                                                        {displayName}
+                                                    </h4>
+                                                    
+                                                    <div className="mt-auto flex flex-col gap-2">
+                                                        <div className="flex flex-col">
+                                                            {hasDiscount && (
+                                                                <span className="text-[9px] font-bold text-gray-400 line-through decoration-red-500/50 leading-none mb-0.5">
+                                                                    {variant.price.toLocaleString()}
+                                                                </span>
+                                                            )}
+                                                            <div className="flex items-baseline gap-0.5">
+                                                                <span className={cn(
+                                                                    "text-[13px] font-black tabular-nums leading-none",
+                                                                    hasDiscount ? "text-red-600" : ""
+                                                                )} style={!hasDiscount ? { color: primaryColor } : undefined}>
+                                                                    {displayPrice.toLocaleString()}
+                                                                </span>
+                                                                <span className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">
+                                                                    $
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Add/Subtract Controls */}
+                                                        {quantity > 0 ? (
+                                                            <div className="flex items-center justify-between bg-zinc-100/80 rounded-full h-8 px-1 border border-black/5">
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); updateItemQuantity(cartItemId, quantity - 1); }}
+                                                                    className="w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-zinc-600 hover:text-black active:scale-90 transition-all"
+                                                                >
+                                                                    <Minus className="w-3 h-3" />
+                                                                </button>
+                                                                <span className="text-[11px] font-black text-gray-900 tabular-nums leading-none text-center min-w-[16px]">
+                                                                    {quantity}
+                                                                </span>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); !isAtMax && addToCart(item, variant); }}
+                                                                    disabled={isAtMax}
+                                                                    className={cn("w-6 h-6 rounded-full text-white flex items-center justify-center shadow-md active:scale-90 transition-all", isAtMax ? "opacity-50" : "")}
+                                                                    style={{ backgroundColor: primaryColor }}
+                                                                >
+                                                                    <Plus className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <Button
+                                                                onClick={(e) => { e.stopPropagation(); !isAtMax && addToCart(item, variant); }}
+                                                                disabled={isAtMax}
+                                                                className="w-full h-8 rounded-full text-white font-black text-[9px] uppercase shadow-md active:scale-95 transition-all px-0"
+                                                                style={{ backgroundColor: primaryColor }}
+                                                            >
+                                                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                                                {language === 'uz' ? "Qo'shish" : language === 'ru' ? "В корзину" : "Add"}
+                                                            </Button>
+                                                        )}
                                                     </div>
-                                                )}
+                                                </div>
                                             </motion.div>
                                         );
                                     })}
@@ -579,7 +624,7 @@ export function ProductDetailDrawer({
                             </motion.div>
                         )}
                         {/* Add to Cart Button */}
-                        {isOrderingEnabled && (
+                        {isOrderingEnabled && (!item.variants || item.variants.length === 0) && (
                             <motion.div
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
@@ -587,8 +632,7 @@ export function ProductDetailDrawer({
                                 className="mt-6 sticky bottom-0"
                             >
                                 {(() => {
-                                    const selectedVariant = item.variants?.find(v => v.id === selectedVariantId);
-                                    const cartItemId = selectedVariantId ? `${item.id}-${selectedVariantId}` : item.id;
+                                    const cartItemId = item.id;
                                     const quantity = getItemQuantity(cartItemId);
 
                                     // Remaining stock — number means limited, undefined/null means unlimited
@@ -675,7 +719,7 @@ export function ProductDetailDrawer({
                                                             boxShadow: `0 8px 20px ${primaryColor}44`
                                                         }}
                                                         disabled={isAtMax}
-                                                        onClick={() => !isAtMax && addToCart(item, selectedVariant || undefined)}
+                                                        onClick={() => !isAtMax && addToCart(item, undefined)}
                                                     >
                                                         <Plus className="h-5 w-5" />
                                                     </Button>
@@ -695,7 +739,7 @@ export function ProductDetailDrawer({
                                                 </div>
                                             )}
                                             <Button
-                                                onClick={() => addToCart(item, selectedVariant || undefined)}
+                                                onClick={() => addToCart(item, undefined)}
                                                 className="w-full h-16 rounded-[22px] text-white font-black flex items-center justify-center gap-3 shadow-2xl active:scale-[0.98] transition-all hover:brightness-110"
                                                 style={{
                                                     backgroundColor: primaryColor,

@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, ImageIcon, CuboidIcon as Cube, X, Plus, Upload, AlertTriangle, ChevronLeft } from "lucide-react"
+import { Loader2, ImageIcon, CuboidIcon as Cube, X, Plus, Upload, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
 import type { MenuItem, Category } from "@/types"
 import { uploadToGitHub } from "@/lib/github-upload"
 import EmbeddedModelViewer from "@/components/embedded-3d-viewer"
@@ -67,6 +67,7 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
       name_uz: v.name_uz || v.name || "",
       name_ru: v.name_ru || v.name || "",
       name_en: v.name_en || v.name || "",
+      imageUrls: v.imageUrls || [],
     })),
     isNew: item?.isNew || false,
     remainingServings: (item?.remainingServings !== undefined && item?.remainingServings !== null) ? item.remainingServings.toString() : "",
@@ -79,6 +80,7 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [isUploadingModel, setIsUploadingModel] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadingVariantIndexes, setUploadingVariantIndexes] = useState<number[]>([])
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [modelUrlError, setModelUrlError] = useState<string | null>(null)
 
@@ -212,7 +214,7 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
           name_en: "",
           price: 0,
           unit: "gr",
-
+          imageUrls: [],
         },
       ],
     }))
@@ -339,6 +341,65 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
     }
   }
 
+  const uploadVariantImageFile = async (index: number, file: File) => {
+    setUploadingVariantIndexes(prev => [...prev, index]);
+    try {
+      const fileName = `${Date.now()}_${file.name}`
+      const result = await uploadToGitHub(file, fileName, "images")
+
+      if (result.success && result.url) {
+        setFormData((prev) => {
+          const newVariants = [...prev.variants]
+          newVariants[index] = {
+            ...newVariants[index],
+            imageUrls: [...(newVariants[index].imageUrls || []), result.url!]
+          }
+          return { ...prev, variants: newVariants }
+        })
+        toast({
+          title: t("admin.form.imageUploaded"),
+          description: t("admin.form.imageUploadedDesc"),
+        })
+      } else {
+        toast({
+          title: t("admin.form.errors.uploadError"),
+          description: result.error || t("admin.form.errors.imageNotUploaded"),
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.warn("Image upload error:", error)
+      toast({
+        title: t("common.error"),
+        description: t("admin.form.errors.imageUploadError"),
+        variant: "destructive",
+      })
+    } finally {
+      setUploadingVariantIndexes(prev => prev.filter(i => i !== index));
+    }
+  }
+
+  const handleVariantImageFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files)
+      const validFiles = files.filter(file => file.type.startsWith("image/"))
+      const currentCount = formData.variants[index].imageUrls?.length || 0;
+
+      if (validFiles.length + currentCount > 3) {
+        toast({
+          title: t("common.error"),
+          description: language === 'uz' ? "Maksimal 3 ta rasm yuklash mumkin" : language === 'ru' ? "Можно загрузить максимум 3 изображения" : "Maximum 3 images allowed",
+          variant: "destructive",
+        })
+        return
+      }
+
+      validFiles.forEach(file => {
+        uploadVariantImageFile(index, file)
+      })
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const hasAnyName = formData.name_uz.trim() || formData.name_ru.trim() || formData.name_en.trim() || formData.name.trim()
@@ -390,7 +451,8 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
           name: v.name_uz || v.name_ru || v.name_en || v.name,
           price: Number(v.price),
           discountPrice: v.discountPrice ? Number(v.discountPrice) : null,
-          discountEndsAt: v.discountEndsAt || null
+          discountEndsAt: v.discountEndsAt || null,
+          imageUrls: v.imageUrls || [],
         })),
         isNew: formData.isNew,
         remainingServings: formData.remainingServings ? Number(formData.remainingServings) : null,
@@ -695,6 +757,7 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
                           name_en: "",
                           price: 0,
                           unit: "gr",
+                          imageUrls: [],
                         }]
                       }));
                     }}
@@ -851,6 +914,62 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
                                 onClick={(e) => e.currentTarget.showPicker?.()}
                                 className="h-10 border-slate-200 focus:border-red-500 text-xs"
                               />
+                            </div>
+                          </div>
+
+                          {/* Variant Image Upload */}
+                          <div className="pt-3 border-t border-slate-100/50 mt-3">
+                            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 block">Variant Rasmlari (max 3)</Label>
+                            <div className="flex gap-2">
+                              {(variant.imageUrls || []).map((url: string, imgIdx: number) => (
+                                <div key={imgIdx} className="relative w-16 h-16 rounded-md border border-slate-200 overflow-hidden group">
+                                  <Image src={url} alt={`Variant ${index} - ${imgIdx}`} fill className="object-cover" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                    {imgIdx > 0 && (
+                                      <button type="button" onClick={() => {
+                                        const newUrls = [...variant.imageUrls];
+                                        [newUrls[imgIdx - 1], newUrls[imgIdx]] = [newUrls[imgIdx], newUrls[imgIdx - 1]];
+                                        handleVariantChange(index, "imageUrls", newUrls);
+                                      }} className="p-0.5 bg-white/20 hover:bg-white/40 rounded text-white">
+                                        <ChevronLeft className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="p-1 bg-red-500 rounded-full text-white hover:bg-red-600"
+                                      onClick={() => handleVariantChange(index, "imageUrls", variant.imageUrls.filter((_: any, i: number) => i !== imgIdx))}
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                    {imgIdx < (variant.imageUrls.length - 1) && (
+                                      <button type="button" onClick={() => {
+                                        const newUrls = [...variant.imageUrls];
+                                        [newUrls[imgIdx], newUrls[imgIdx + 1]] = [newUrls[imgIdx + 1], newUrls[imgIdx]];
+                                        handleVariantChange(index, "imageUrls", newUrls);
+                                      }} className="p-0.5 bg-white/20 hover:bg-white/40 rounded text-white">
+                                        <ChevronRight className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                              {(variant.imageUrls?.length || 0) < 3 && (
+                                <label className={cn("w-16 h-16 border-2 border-dashed border-slate-200 rounded-md flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/50 cursor-pointer transition-colors bg-slate-50 hover:bg-primary/5", uploadingVariantIndexes.includes(index) && "opacity-50 cursor-not-allowed")}>
+                                  {uploadingVariantIndexes.includes(index) ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                  ) : (
+                                    <Plus className="w-5 h-5" />
+                                  )}
+                                  <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    multiple 
+                                    className="hidden" 
+                                    onChange={(e) => handleVariantImageFileChange(index, e)} 
+                                    disabled={uploadingVariantIndexes.includes(index)}
+                                  />
+                                </label>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1100,6 +1219,17 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
                     <div key={index} className="relative aspect-square bg-slate-50 rounded-lg border border-slate-200 overflow-hidden group">
                       <Image src={url} alt={`Upload ${index}`} fill className="object-cover" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        {index > 0 && (
+                          <Button type="button" size="icon" variant="secondary" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const newUrls = [...formData.imageUrls];
+                                [newUrls[index - 1], newUrls[index]] = [newUrls[index], newUrls[index - 1]];
+                                setFormData(prev => ({...prev, imageUrls: newUrls}));
+                            }}>
+                            <ChevronLeft className="w-3 h-3" />
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           size="icon"
@@ -1109,6 +1239,17 @@ export function MenuItemForm({ item, categories, onSuccess, onCancel }: MenuItem
                         >
                           <X className="w-4 h-4" />
                         </Button>
+                        {index < formData.imageUrls.length - 1 && (
+                          <Button type="button" size="icon" variant="secondary" className="h-6 w-6 rounded-full opacity-80 hover:opacity-100"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const newUrls = [...formData.imageUrls];
+                                [newUrls[index], newUrls[index + 1]] = [newUrls[index + 1], newUrls[index]];
+                                setFormData(prev => ({...prev, imageUrls: newUrls}));
+                            }}>
+                            <ChevronRight className="w-3 h-3" />
+                          </Button>
+                        )}
                       </div>
                       {index === 0 && (
                         <div className="absolute bottom-0 left-0 right-0 bg-green-500/90 text-[8px] text-white font-black text-center py-0.5 uppercase tracking-tighter">

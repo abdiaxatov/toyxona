@@ -1,5 +1,4 @@
-import { db } from "@/lib/firebase"
-import { collection, query, where, getDocs, limit } from "firebase/firestore"
+import { adminDb } from "@/lib/firebase-admin"
 import { cache } from "react"
 
 export interface RestaurantData {
@@ -8,15 +7,13 @@ export interface RestaurantData {
 }
 
 export const getRestaurantBySlug = cache(async (slug: string): Promise<RestaurantData | null> => {
-    if (!db) return null
-    const q = query(collection(db, "restaurants"), where("slug", "==", slug), limit(1))
-    const snapshot = await getDocs(q)
+    if (!adminDb) return null
+    const snapshot = await adminDb.collection("restaurants").where("slug", "==", slug).limit(1).get()
 
     if (snapshot.empty) {
         // Development fallback for 'sumika' slug
         if (slug === "sumika") {
-            const fallbackQ = query(collection(db, "restaurants"), where("__name__", "==", "v5K3bHKNpR0dab4jPb7U"), limit(1))
-            const fallbackSnap = await getDocs(fallbackQ)
+            const fallbackSnap = await adminDb.collection("restaurants").where("__name__", "==", "v5K3bHKNpR0dab4jPb7U").limit(1).get()
             if (!fallbackSnap.empty) {
                 const doc = fallbackSnap.docs[0]
                 const data = doc.data()
@@ -24,7 +21,8 @@ export const getRestaurantBySlug = cache(async (slug: string): Promise<Restauran
                     id: doc.id,
                     ...data,
                     status: (data.status === 'active' || data.status === 'disabled') ? 'active' : data.status,
-                    createdAt: data.createdAt?.toMillis?.() || data.createdAt?.seconds * 1000 || null
+                    createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : (data.createdAt?._seconds ? data.createdAt._seconds * 1000 : null),
+                    updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : (data.updatedAt?._seconds ? data.updatedAt._seconds * 1000 : null)
                 }
             }
         }
@@ -37,12 +35,13 @@ export const getRestaurantBySlug = cache(async (slug: string): Promise<Restauran
     return {
         id: doc.id,
         ...data,
-        createdAt: data.createdAt?.toMillis?.() || data.createdAt?.seconds * 1000 || null
+        createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : (data.createdAt?._seconds ? data.createdAt._seconds * 1000 : null),
+        updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : (data.updatedAt?._seconds ? data.updatedAt._seconds * 1000 : null)
     }
 })
 
 export const getRestaurantByDomain = cache(async (domain: string): Promise<RestaurantData | null> => {
-    if (!db) return null
+    if (!adminDb) return null
     // Remove port if present
     const cleanDomain = domain.split(':')[0].toLowerCase()
 
@@ -53,21 +52,18 @@ export const getRestaurantByDomain = cache(async (domain: string): Promise<Resta
     }
 
     // 1. Try exact match
-    let q = query(collection(db, "restaurants"), where("customDomain", "==", cleanDomain), limit(1))
-    let snapshot = await getDocs(q)
+    let snapshot = await adminDb.collection("restaurants").where("customDomain", "==", cleanDomain).limit(1).get()
 
     // 2. If not found, try stripping 'www.'
     if (snapshot.empty && cleanDomain.startsWith("www.")) {
         const noWwwDomain = cleanDomain.replace(/^www\./, "")
-        q = query(collection(db, "restaurants"), where("customDomain", "==", noWwwDomain), limit(1))
-        snapshot = await getDocs(q)
+        snapshot = await adminDb.collection("restaurants").where("customDomain", "==", noWwwDomain).limit(1).get()
     }
 
     // 3. If still not found, try adding 'www.'
     if (snapshot.empty && !cleanDomain.startsWith("www.")) {
         const wwwDomain = "www." + cleanDomain
-        q = query(collection(db, "restaurants"), where("customDomain", "==", wwwDomain), limit(1))
-        snapshot = await getDocs(q)
+        snapshot = await adminDb.collection("restaurants").where("customDomain", "==", wwwDomain).limit(1).get()
     }
 
     if (snapshot.empty) {
@@ -80,6 +76,7 @@ export const getRestaurantByDomain = cache(async (domain: string): Promise<Resta
     return {
         id: doc.id,
         ...data,
-        createdAt: data.createdAt?.toMillis?.() || data.createdAt?.seconds * 1000 || null
+        createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : (data.createdAt?._seconds ? data.createdAt._seconds * 1000 : null),
+        updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : (data.updatedAt?._seconds ? data.updatedAt._seconds * 1000 : null)
     }
 })

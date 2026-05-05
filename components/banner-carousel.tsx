@@ -18,8 +18,11 @@ interface BannerCarouselProps {
 }
 
 export function BannerCarousel({ banners, onBannerClick }: BannerCarouselProps) {
+    const autoplayPlugin = React.useRef(
+        Autoplay({ delay: 5000, stopOnInteraction: false })
+    )
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
-        Autoplay({ delay: 5000, stopOnInteraction: false }),
+        autoplayPlugin.current,
     ])
     const [selectedIndex, setSelectedIndex] = useState(0)
     const { t, language } = useLanguage()
