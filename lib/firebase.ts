@@ -38,9 +38,18 @@ if (!firebaseConfig.apiKey) {
 
     // Initialize Firestore with persistence
     if (typeof window !== "undefined") {
-      db = initializeFirestore(app, {
-        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-      });
+      try {
+        // In some environments, multiple initializations can cause lease issues.
+        // We use getFirestore first to see if it's already setup.
+        db = getFirestore(app);
+      } catch (e) {
+        db = initializeFirestore(app, {
+          localCache: persistentLocalCache({ 
+            tabManager: persistentMultipleTabManager() 
+          }),
+          experimentalAutoDetectLongPolling: true
+        });
+      }
     } else {
       db = getFirestore(app);
     }
