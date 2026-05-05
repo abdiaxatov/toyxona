@@ -1,15 +1,131 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { ArrowLeft, Minus, Plus, ShoppingCart, X } from "lucide-react"
+import { ArrowLeft, Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { getLocalizedName } from "@/lib/localization"
 import { useCart } from "@/components/cart-provider"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Drawer } from "vaul"
+import { motion, AnimatePresence } from "framer-motion"
+
+function VariantCard({ variant, product, language, primaryColor, onSelect }: any) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const images = useMemo(() => {
+    if (variant.imageUrls && variant.imageUrls.length > 0) return variant.imageUrls;
+    if (product.imageUrls && product.imageUrls.length > 0) return product.imageUrls;
+    if (product.imageUrl) return [product.imageUrl];
+    return [];
+  }, [variant, product]);
+
+  const name = getLocalizedName(variant, language);
+  const unit = variant.unit || (/^\d+$/.test(name) ? 'gr' : '');
+  let du = "";
+  if (unit === 'gr') du = language === 'uz' ? 'gr' : language === 'ru' ? 'гр' : 'g';
+  else if (unit === 'pc') du = language === 'uz' ? 'dona' : language === 'ru' ? 'шт' : 'pc';
+  else if (unit === 'kg') du = language === 'uz' ? 'kg' : language === 'ru' ? 'кг' : 'kg';
+  else if (unit === 'l') du = language === 'uz' ? 'l' : language === 'ru' ? 'л' : 'l';
+  const displayName = unit && /^\d+$/.test(name) ? `${name} ${du}` : name;
+
+  const hasDiscount = variant.discountPrice && variant.discountPrice > 0 && variant.discountPrice < variant.price &&
+      variant.discountEndsAt && new Date(variant.discountEndsAt._seconds ? variant.discountEndsAt._seconds * 1000 : variant.discountEndsAt) > new Date();
+  const displayPrice = hasDiscount ? variant.discountPrice! : variant.price;
+  const discountPercent = hasDiscount ? Math.round((1 - variant.discountPrice! / variant.price) * 100) : 0;
+
+  const nextImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  return (
+    <div
+        onClick={onSelect}
+        className="relative flex flex-col bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
+    >
+        <div className="relative aspect-square w-full bg-gray-50 flex items-center justify-center overflow-hidden">
+            {images.length > 0 ? (
+                <AnimatePresence initial={false} mode="wait">
+                    <motion.div
+                        key={currentImageIndex}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute inset-0"
+                    >
+                        <Image src={images[currentImageIndex]} alt={name} fill className="object-cover" sizes="50vw" />
+                    </motion.div>
+                </AnimatePresence>
+            ) : (
+                <div className="w-8 h-8 text-gray-300" />
+            )}
+            
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                
+                <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
+                  {images.map((_: any, i: number) => (
+                    <div key={i} className={cn("h-1 rounded-full transition-all", i === currentImageIndex ? "w-3 bg-white" : "w-1.5 bg-white/50")} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {hasDiscount && (
+                <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
+                    -{discountPercent}%
+                </div>
+            )}
+        </div>
+
+        <div className="p-2.5 flex flex-col flex-1">
+            <h4 className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2 mb-1.5 min-h-[26px]">
+                {displayName}
+            </h4>
+            
+            <div className="mt-auto flex flex-col gap-2">
+                <div className="flex flex-col">
+                    {hasDiscount && (
+                        <span className="text-[9px] font-bold text-gray-400 line-through decoration-red-500/50 leading-none mb-0.5">
+                            {variant.price.toLocaleString()}
+                        </span>
+                    )}
+                    <div className="flex items-baseline gap-0.5">
+                        <span className={cn(
+                            "text-[13px] font-black tabular-nums leading-none",
+                            hasDiscount ? "text-red-600" : ""
+                        )} style={!hasDiscount ? { color: primaryColor } : undefined}>
+                            {displayPrice.toLocaleString()}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">$</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  )
+}
 
 export function ProductClient({ restaurant, product, slug }: { restaurant: any, product: any, slug: string }) {
   const router = useRouter()
@@ -17,9 +133,32 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
   const { addToCart, getItemQuantity, updateItemQuantity } = useCart()
 
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null)
+  const [drawerImageIndex, setDrawerImageIndex] = useState(0)
+
+  useEffect(() => {
+    setDrawerImageIndex(0)
+  }, [selectedVariant])
 
   const primaryColor = restaurant?.primaryColor || '#f43f5e'
   const productName = getLocalizedName(product, language)
+
+  const drawerImages = useMemo(() => {
+    if (!selectedVariant) return [];
+    if (selectedVariant.imageUrls && selectedVariant.imageUrls.length > 0) return selectedVariant.imageUrls;
+    if (product.imageUrls && product.imageUrls.length > 0) return product.imageUrls;
+    if (product.imageUrl) return [product.imageUrl];
+    return [];
+  }, [selectedVariant, product]);
+
+  const nextDrawerImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setDrawerImageIndex((prev) => (prev + 1) % drawerImages.length);
+  };
+
+  const prevDrawerImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setDrawerImageIndex((prev) => (prev - 1 + drawerImages.length) % drawerImages.length);
+  };
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 flex flex-col pb-20">
@@ -56,73 +195,16 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
         )}
 
         <div className="grid grid-cols-2 gap-3 md:gap-4">
-          {product.variants?.map((variant: any, idx: number) => {
-            const name = getLocalizedName(variant, language);
-            const unit = variant.unit || (/^\d+$/.test(name) ? 'gr' : '');
-            let du = "";
-            if (unit === 'gr') du = language === 'uz' ? 'gr' : language === 'ru' ? 'гр' : 'g';
-            else if (unit === 'pc') du = language === 'uz' ? 'dona' : language === 'ru' ? 'шт' : 'pc';
-            else if (unit === 'kg') du = language === 'uz' ? 'kg' : language === 'ru' ? 'кг' : 'kg';
-            else if (unit === 'l') du = language === 'uz' ? 'l' : language === 'ru' ? 'л' : 'l';
-            const displayName = unit && /^\d+$/.test(name) ? `${name} ${du}` : name;
-
-            const hasDiscount = variant.discountPrice && variant.discountPrice > 0 && variant.discountPrice < variant.price &&
-                variant.discountEndsAt && new Date(variant.discountEndsAt._seconds ? variant.discountEndsAt._seconds * 1000 : variant.discountEndsAt) > new Date();
-            const displayPrice = hasDiscount ? variant.discountPrice! : variant.price;
-            const discountPercent = hasDiscount ? Math.round((1 - variant.discountPrice! / variant.price) * 100) : 0;
-
-            const img = (variant.imageUrls && variant.imageUrls.length > 0)
-                ? variant.imageUrls[0]
-                : (product.imageUrls && product.imageUrls.length > 0)
-                    ? product.imageUrls[0]
-                    : product.imageUrl;
-
-            return (
-                <div
-                    key={variant.id}
-                    onClick={() => setSelectedVariant(variant)}
-                    className="relative flex flex-col bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                >
-                    <div className="relative aspect-square w-full bg-gray-50 flex items-center justify-center">
-                        {img ? (
-                            <Image src={img} alt={name} fill className="object-cover" sizes="50vw" />
-                        ) : (
-                            <div className="w-8 h-8 text-gray-300" />
-                        )}
-                        {hasDiscount && (
-                            <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
-                                -{discountPercent}%
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="p-2.5 flex flex-col flex-1">
-                        <h4 className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2 mb-1.5 min-h-[26px]">
-                            {displayName}
-                        </h4>
-                        
-                        <div className="mt-auto flex flex-col gap-2">
-                            <div className="flex flex-col">
-                                {hasDiscount && (
-                                    <span className="text-[9px] font-bold text-gray-400 line-through decoration-red-500/50 leading-none mb-0.5">
-                                        {variant.price.toLocaleString()}
-                                    </span>
-                                )}
-                                <div className="flex items-baseline gap-0.5">
-                                    <span className={cn(
-                                        "text-[13px] font-black tabular-nums leading-none",
-                                        hasDiscount ? "text-red-600" : ""
-                                    )} style={!hasDiscount ? { color: primaryColor } : undefined}>
-                                        {displayPrice.toLocaleString()}
-                                    </span>
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">$</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )
-          })}
+          {product.variants?.map((variant: any, idx: number) => (
+             <VariantCard
+                key={variant.id}
+                variant={variant}
+                product={product}
+                language={language}
+                primaryColor={primaryColor}
+                onSelect={() => setSelectedVariant(variant)}
+             />
+          ))}
         </div>
       </div>
 
@@ -158,24 +240,53 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                     const stockNum = hasStockLimit ? Number(stockRaw) : Infinity;
                     const isAtMax = hasStockLimit && quantity >= stockNum;
 
-                    const img = (selectedVariant.imageUrls && selectedVariant.imageUrls.length > 0)
-                        ? selectedVariant.imageUrls[0]
-                        : (product.imageUrls && product.imageUrls.length > 0)
-                            ? product.imageUrls[0]
-                            : product.imageUrl;
-
                     return (
                         <>
                             <div className="flex-1 overflow-y-auto pb-24">
                                 <div className="px-4 pb-6">
                                     <div className="relative w-full aspect-square bg-white rounded-[32px] overflow-hidden border border-black/5 shadow-sm mb-6">
-                                        {img ? (
-                                            <Image src={img} alt={name} fill className="object-cover" />
+                                        {drawerImages.length > 0 ? (
+                                            <AnimatePresence initial={false} mode="wait">
+                                                <motion.div
+                                                    key={drawerImageIndex}
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="absolute inset-0"
+                                                >
+                                                    <Image src={drawerImages[drawerImageIndex]} alt={name} fill className="object-cover" />
+                                                </motion.div>
+                                            </AnimatePresence>
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center bg-gray-100">
                                                 <div className="w-12 h-12 text-gray-300" />
                                             </div>
                                         )}
+
+                                        {drawerImages.length > 1 && (
+                                            <>
+                                                <button
+                                                    onClick={prevDrawerImage}
+                                                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white"
+                                                >
+                                                    <ChevronLeft className="w-6 h-6" />
+                                                </button>
+                                                <button
+                                                    onClick={nextDrawerImage}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white"
+                                                >
+                                                    <ChevronRight className="w-6 h-6" />
+                                                </button>
+
+                                                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                                                    {drawerImages.map((_: any, i: number) => (
+                                                        <div key={i} className={cn("h-1.5 rounded-full transition-all shadow-sm", i === drawerImageIndex ? "w-5 bg-white" : "w-2 bg-white/50")} />
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+
                                         {hasDiscount && (
                                             <div className="absolute top-3 left-3 bg-red-600 text-white font-black px-2 py-1 rounded-full shadow-md text-xs">
                                                 -{discountPercent}%
@@ -209,6 +320,37 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                             </div>
                             
                             {/* Bottom Fixed Bar */}
+                            {/* <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-black/5 z-20 pb-safe">
+                                {quantity > 0 ? (
+                                    <div className="flex items-center justify-between bg-zinc-100/80 rounded-full h-14 px-2 border border-black/5">
+                                        <button
+                                            onClick={() => updateItemQuantity(cartItemId, quantity - 1)}
+                                            className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-zinc-600 active:scale-90 transition-transform"
+                                        >
+                                            <Minus className="w-5 h-5" />
+                                        </button>
+                                        <span className="text-xl font-black text-gray-900 tabular-nums min-w-[32px] text-center">{quantity}</span>
+                                        <button
+                                            onClick={() => !isAtMax && addToCart(product, selectedVariant)}
+                                            disabled={isAtMax}
+                                            className={cn("w-12 h-12 rounded-full text-white shadow-md flex items-center justify-center active:scale-90 transition-transform", isAtMax && "opacity-50")}
+                                            style={{ backgroundColor: primaryColor }}
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        onClick={() => !isAtMax && addToCart(product, selectedVariant)}
+                                        disabled={isAtMax}
+                                        className="w-full h-14 rounded-full text-white font-black text-sm uppercase shadow-xl active:scale-95 transition-transform"
+                                        style={{ backgroundColor: primaryColor }}
+                                    >
+                                        <ShoppingCart className="w-5 h-5 mr-2" />
+                                        {language === 'uz' ? "Savatchaga qo'shish" : language === 'ru' ? "В корзину" : "Add to Cart"}
+                                    </Button>
+                                )}
+                            </div> */}
                         </>
                     );
                 })()}
