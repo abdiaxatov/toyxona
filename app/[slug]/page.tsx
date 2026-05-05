@@ -62,5 +62,33 @@ export default async function RestaurantMenuPage({ params }: PageProps) {
     // Convert Firestore Timestamps and other non-serializable objects to plain values
     const serializedData = JSON.parse(JSON.stringify(restaurantData))
 
-    return <MenuPage restaurantId={serializedData.id} restaurantData={serializedData} />
+    // 🔹 Pre-fetch collections using Admin SDK to bypass security rules
+    const [categoriesSnap, menuItemsSnap, bannersSnap] = await Promise.all([
+        adminDb.collection("restaurants").doc(serializedData.id).collection("categories").orderBy("order").get(),
+        adminDb.collection("restaurants").doc(serializedData.id).collection("menuItems").get(),
+        adminDb.collection("restaurants").doc(serializedData.id).collection("banners").orderBy("createdAt", "desc").get()
+    ]);
+
+    const initialCategories = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const initialMenuItems = menuItemsSnap.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            // Format dates
+            discountEndsAt: data.discountEndsAt?.toMillis ? data.discountEndsAt.toMillis() : (data.discountEndsAt?._seconds ? data.discountEndsAt._seconds * 1000 : null),
+        };
+    }).filter(item => item.available !== false && item.isAvailable !== false);
+
+    const initialBanners = bannersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(b => b.active);
+
+    return (
+        <MenuPage 
+            restaurantId={serializedData.id} 
+            restaurantData={serializedData} 
+            initialCategories={JSON.parse(JSON.stringify(initialCategories))}
+            initialMenuItems={JSON.parse(JSON.stringify(initialMenuItems))}
+            initialBanners={JSON.parse(JSON.stringify(initialBanners))}
+        />
+    )
 }

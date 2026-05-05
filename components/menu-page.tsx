@@ -85,9 +85,18 @@ import { getRestaurantCollection } from "@/lib/firebase-utils";
 interface MenuPageProps {
   restaurantId?: string;
   restaurantData?: any;
+  initialCategories?: any[];
+  initialMenuItems?: any[];
+  initialBanners?: any[];
 }
 
-export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }: MenuPageProps) {
+export function MenuPage({ 
+  restaurantId, 
+  restaurantData: initialRestaurantData,
+  initialCategories = [],
+  initialMenuItems = [],
+  initialBanners = []
+}: MenuPageProps) {
   useEffect(() => {
     console.log("DEBUG: MenuPage restaurantId:", typeof restaurantId, restaurantId);
     if (typeof restaurantId === 'object') {
@@ -97,11 +106,12 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
 
   const [restaurantData, setRestaurantData] = useState(initialRestaurantData);
   const { t, language } = useLanguage();
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialMenuItems.length);
+  const [banners, setBanners] = useState<Banner[]>(initialBanners);
   const [activeTab, setActiveTab] = useState<"menu" | "orders" | "prizes" | "gallery" | "account" | "bron">("menu");
   const [isMounted, setIsMounted] = useState(false);
 
@@ -127,7 +137,7 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
   const [telegramDrawerOpen, setTelegramDrawerOpen] = useState(false);
   const [telegramOrderDrawerOpen, setTelegramOrderDrawerOpen] = useState(false);
   const [instagramDrawerOpen, setInstagramDrawerOpen] = useState(false);
-  const [banners, setBanners] = useState<Banner[]>([]);
+  // banners state is already defined above with initialBanners
 
   const extractInstagramUsername = (url: string) => {
     if (!url) return "";
@@ -567,10 +577,13 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
   useEffect(() => {
     // 🔹 Clear previous data when switching restaurants to prevent leakage/stale views
     if (restaurantId) {
-       setMenuItems([]);
-       setCategories([]);
-       setBanners([]);
-       setIsLoading(true);
+       // Only clear if we don't have initial data for the new restaurant
+       if (!initialMenuItems.length) {
+         setMenuItems([]);
+         setCategories([]);
+         setBanners([]);
+         setIsLoading(true);
+       }
     }
   }, [restaurantId]);
 
@@ -615,7 +628,13 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
           localStorage.setItem(`categories_${restaurantId}`, JSON.stringify(categoriesData));
         }
       },
-      (error) => console.error("Error fetching categories:", error)
+      (error) => {
+        if (error.code === 'permission-denied' && categories.length > 0) {
+          console.log("Using server-side categories (client rules restricted)");
+        } else {
+          console.error("Error fetching categories:", error);
+        }
+      }
     );
 
     const menuRef = restaurantId ? getRestaurantCollection(restaurantId, "menuItems") : collection(db, "menuItems");
@@ -662,7 +681,11 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
         setIsLoading(false);
       },
       (error) => {
-        console.error("Error fetching menu:", error);
+        if (error.code === 'permission-denied' && menuItems.length > 0) {
+          console.log("Using server-side menu (client rules restricted)");
+        } else {
+          console.error("Error fetching menu:", error);
+        }
         setIsLoading(false);
       }
     );
@@ -679,7 +702,13 @@ export function MenuPage({ restaurantId, restaurantData: initialRestaurantData }
           localStorage.setItem(`banners_${restaurantId}`, JSON.stringify(bannersData));
         }
       },
-      (error) => console.error("Error fetching banners:", error)
+      (error) => {
+        if (error.code === 'permission-denied' && banners.length > 0) {
+          console.log("Using server-side banners (client rules restricted)");
+        } else {
+          console.error("Error fetching banners:", error);
+        }
+      }
     );
 
     // 🔹 3. Real-time Restaurant Data Listener
