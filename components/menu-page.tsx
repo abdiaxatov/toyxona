@@ -670,6 +670,7 @@ export function MenuPage({
               variants: data.variants || [],
               order: data.order,
               isNew: data.isNew || false,
+              videoUrl: data.videoUrl || "",
             } as MenuItem;
           })
           .filter((item) => item.available && item.isAvailable);

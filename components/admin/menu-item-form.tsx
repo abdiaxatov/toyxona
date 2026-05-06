@@ -56,6 +56,8 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [videoPreview, setVideoPreview] = useState(item?.videoUrl || "")
   const [isUploadingVideo, setIsUploadingVideo] = useState(false)
+  const [videoProgress, setVideoProgress] = useState(0)
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState(item?.videoUrl || "")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -85,11 +87,46 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
     }
   }
 
-  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
       setVideoFile(file)
       setVideoPreview(URL.createObjectURL(file))
+      
+      setIsUploadingVideo(true)
+      setVideoProgress(0)
+      
+      const result = await uploadToKinescope(file, name || file.name, (percent) => {
+        setVideoProgress(percent)
+      })
+      
+      if (result.success && result.url) {
+        setUploadedVideoUrl(result.url)
+        toast({
+          title: "Video yuklandi",
+          description: "Video muvaffaqiyatli yuklandi",
+        })
+        
+        if (item?.id) {
+          try {
+            await updateDoc(doc(db, "menu-items", item.id), { videoUrl: result.url })
+            toast({
+              title: "Saqlandi",
+              description: "Video bazaga avtomatik qo'shildi",
+            })
+          } catch (error) {
+            console.error("Error auto-saving video:", error)
+          }
+        }
+      } else {
+        toast({
+          title: "Video yuklashda xatolik",
+          description: result.error || "Noma'lum xatolik",
+          variant: "destructive",
+        })
+      }
+      
+      setIsUploadingVideo(false)
     }
   }
 
@@ -145,23 +182,8 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
         imageUrl = await getDownloadURL(storageRef)
       }
 
-      let videoUrl = item?.videoUrl || ""
-      if (videoFile) {
-        setIsUploadingVideo(true)
-        const result = await uploadToKinescope(videoFile, name)
-        if (result.success && result.url) {
-          videoUrl = result.url
-        } else {
-          toast({
-            title: "Video yuklashda xatolik",
-            description: result.error || "Noma'lum xatolik",
-            variant: "destructive",
-          })
-          // Don't stop the whole process if video fails? 
-          // Actually, let's keep going but without the video.
-        }
-        setIsUploadingVideo(false)
-      }
+      let videoUrl = uploadedVideoUrl
+      // Note: we don't need to re-upload because we auto-uploaded in handleVideoChange
 
       const menuItemData = {
         name,
@@ -337,9 +359,12 @@ export function MenuItemForm({ item, onSuccess, onCancel }: MenuItemFormProps) {
               onClick={() => document.getElementById('video-upload')?.click()}
             >
               {isUploadingVideo ? (
-                <div className="flex flex-col items-center justify-center">
+                <div className="flex flex-col items-center justify-center w-full px-4">
                   <Loader2 className="w-8 h-8 text-primary animate-spin mb-2" />
-                  <span className="text-[10px] font-black text-zinc-500 uppercase">Yuklanmoqda...</span>
+                  <div className="w-full bg-zinc-200 dark:bg-zinc-800 rounded-full h-1.5 mb-1 overflow-hidden">
+                    <div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${videoProgress}%` }}></div>
+                  </div>
+                  <span className="text-[10px] font-black text-zinc-500 uppercase">{videoProgress}% Yuklanmoqda...</span>
                 </div>
               ) : videoPreview ? (
                 <>

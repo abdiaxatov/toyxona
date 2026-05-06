@@ -11,7 +11,8 @@ interface PageProps {
 }
 
 export default async function ProductPage({ params }: PageProps) {
-  const restaurant = await getRestaurantBySlug(params.slug)
+  const resolvedParams = await params;
+  const restaurant = await getRestaurantBySlug(resolvedParams.slug)
   
   if (!restaurant) {
     notFound()
@@ -21,7 +22,7 @@ export default async function ProductPage({ params }: PageProps) {
     .collection("restaurants")
     .doc(restaurant.id)
     .collection("menuItems")
-    .doc(params.productId)
+    .doc(resolvedParams.productId)
     .get()
   
   if (!productDoc.exists) {
@@ -42,5 +43,5 @@ export default async function ProductPage({ params }: PageProps) {
     // Actually we can just show the product itself, but for now just pass to client
   }
 
-  return <ProductClient restaurant={restaurant} product={product} slug={params.slug} />
+  return <ProductClient restaurant={restaurant} product={product} slug={resolvedParams.slug} />
 }

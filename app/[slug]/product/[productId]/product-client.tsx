@@ -150,14 +150,31 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
     const primaryColor = restaurant?.primaryColor || '#f43f5e'
     const productName = getLocalizedName(product, language)
 
-    const drawerMedia = useMemo(() => {
-        if (!selectedVariant) return [];
-        const media: { type: 'image' | 'video', url: string }[] = [];
-        
-        if (product.videoUrl) {
-            media.push({ type: 'video', url: product.videoUrl });
+    const [activeTab, setActiveTab] = useState<'image' | 'video'>('image')
+    const [drawerActiveTab, setDrawerActiveTab] = useState<'image' | 'video'>('image')
+
+    const hasVideo = !!product.videoUrl
+
+    const mainImages = useMemo(() => {
+        let images = [];
+        if (product.imageUrls && product.imageUrls.length > 0) {
+            images = product.imageUrls;
+        } else if (product.imageUrl) {
+            images = [product.imageUrl];
         }
-        
+        return images;
+    }, [product]);
+
+    useEffect(() => {
+        if (hasVideo && mainImages.length === 0) {
+            setActiveTab('video');
+        } else {
+            setActiveTab('image');
+        }
+    }, [hasVideo, mainImages.length]);
+
+    const drawerImages = useMemo(() => {
+        if (!selectedVariant) return [];
         let images = [];
         if (selectedVariant.imageUrls && selectedVariant.imageUrls.length > 0) {
             images = selectedVariant.imageUrls;
@@ -166,46 +183,36 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
         } else if (product.imageUrl) {
             images = [product.imageUrl];
         }
-        
-        images.forEach(img => media.push({ type: 'image', url: img }));
-        return media;
+        return images;
     }, [selectedVariant, product]);
 
-    const mainMedia = useMemo(() => {
-        const media: { type: 'image' | 'video', url: string }[] = [];
-        if (product.videoUrl) {
-            media.push({ type: 'video', url: product.videoUrl });
+    useEffect(() => {
+        if (hasVideo && drawerImages.length === 0) {
+            setDrawerActiveTab('video');
+        } else {
+            setDrawerActiveTab('image');
         }
-        
-        let images = [];
-        if (product.imageUrls && product.imageUrls.length > 0) {
-            images = product.imageUrls;
-        } else if (product.imageUrl) {
-            images = [product.imageUrl];
-        }
-        
-        images.forEach(img => media.push({ type: 'image', url: img }));
-        return media;
-    }, [product]);
+        setDrawerImageIndex(0);
+    }, [selectedVariant, hasVideo, drawerImages.length]);
 
     const nextMainImage = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        setMainImageIndex((prev) => (prev + 1) % mainMedia.length);
+        setMainImageIndex((prev) => (prev + 1) % mainImages.length);
     };
 
     const prevMainImage = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        setMainImageIndex((prev) => (prev - 1 + mainMedia.length) % mainMedia.length);
+        setMainImageIndex((prev) => (prev - 1 + mainImages.length) % mainImages.length);
     };
 
     const nextDrawerImage = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        setDrawerImageIndex((prev) => (prev + 1) % drawerMedia.length);
+        setDrawerImageIndex((prev) => (prev + 1) % drawerImages.length);
     };
 
     const prevDrawerImage = (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        setDrawerImageIndex((prev) => (prev - 1 + drawerMedia.length) % drawerMedia.length);
+        setDrawerImageIndex((prev) => (prev - 1 + drawerImages.length) % drawerImages.length);
     };
 
     return (
@@ -223,32 +230,63 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
             </div>
 
             {/* Main Product Info Carousel */}
-            {mainMedia.length > 0 && (
+            {(mainImages.length > 0 || hasVideo) && (
                 <div className="w-full aspect-video relative bg-gray-100 overflow-hidden">
                     <AnimatePresence initial={false} mode="wait">
                         <motion.div
-                            key={mainImageIndex}
+                            key={`${activeTab}-${mainImageIndex}`}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.3 }}
                             className="absolute inset-0"
                         >
-                            {mainMedia[mainImageIndex].type === 'video' ? (
+                            {activeTab === 'video' && product.videoUrl ? (
                                 <iframe
-                                    src={getKinescopeEmbedUrl(mainMedia[mainImageIndex].url)}
+                                    src={getKinescopeEmbedUrl(product.videoUrl)}
                                     className="w-full h-full"
                                     allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
                                     frameBorder="0"
                                     allowFullScreen
                                 />
+                            ) : mainImages.length > 0 ? (
+                                <Image src={mainImages[mainImageIndex]} alt={productName} fill className="object-cover" priority />
                             ) : (
-                                <Image src={mainMedia[mainImageIndex].url} alt={productName} fill className="object-cover" priority />
+                                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                    <div className="w-12 h-12 text-gray-300" />
+                                </div>
                             )}
                         </motion.div>
                     </AnimatePresence>
 
-                    {mainMedia.length > 1 && (
+                    {/* Tabs (Rasm / Video) */}
+                    {mainImages.length > 0 && hasVideo && (
+                        <div className="absolute top-4 left-0 right-0 z-20 flex justify-center">
+                            <div className="bg-black/40 backdrop-blur-md rounded-full p-1 flex gap-1 border border-white/10">
+                                <button
+                                    onClick={() => setActiveTab('image')}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-full text-xs font-bold transition-all",
+                                        activeTab === 'image' ? "bg-white text-black shadow-sm" : "text-white/80 hover:text-white"
+                                    )}
+                                >
+                                    Rasm
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('video')}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1",
+                                        activeTab === 'video' ? "bg-white text-black shadow-sm" : "text-white/80 hover:text-white"
+                                    )}
+                                >
+                                    <Play className="w-3 h-3" />
+                                    Video
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {mainImages.length > 1 && activeTab === 'image' && (
                         <>
                             <button
                                 onClick={prevMainImage}
@@ -264,7 +302,7 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                             </button>
 
                             <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
-                                {mainMedia.map((_: any, i: number) => (
+                                {mainImages.map((_: any, i: number) => (
                                     <div key={i} className={cn("h-1.5 rounded-full transition-all shadow-sm", i === mainImageIndex ? "w-5 bg-white" : "w-2 bg-white/50")} />
                                 ))}
                             </div>
@@ -338,28 +376,32 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                                     <div className="flex-1 overflow-y-auto pb-24">
                                         <div className="px-4 pb-6">
                                             <div className="relative w-full aspect-square bg-white rounded-[32px] overflow-hidden border border-black/5 shadow-sm mb-6">
-                                                {drawerMedia.length > 0 ? (
+                                                {(drawerImages.length > 0 || hasVideo) ? (
                                                     <AnimatePresence initial={false} mode="wait">
                                                         <motion.div
-                                                            key={drawerImageIndex}
+                                                            key={`${drawerActiveTab}-${drawerImageIndex}`}
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
                                                             exit={{ opacity: 0 }}
                                                             transition={{ duration: 0.2 }}
                                                             className="absolute inset-0"
                                                         >
-                                                            {drawerMedia[drawerImageIndex].type === 'video' ? (
+                                                            {drawerActiveTab === 'video' && product.videoUrl ? (
                                                                 <div className="w-full h-full relative" style={{ paddingTop: '0%' }}>
                                                                     <iframe
-                                                                        src={getKinescopeEmbedUrl(drawerMedia[drawerImageIndex].url)}
+                                                                        src={getKinescopeEmbedUrl(product.videoUrl)}
                                                                         className="absolute inset-0 w-full h-full"
                                                                         allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
                                                                         frameBorder="0"
                                                                         allowFullScreen
                                                                     />
                                                                 </div>
+                                                            ) : drawerImages.length > 0 ? (
+                                                                <Image src={drawerImages[drawerImageIndex]} alt={name} fill className="object-cover" />
                                                             ) : (
-                                                                <Image src={drawerMedia[drawerImageIndex].url} alt={name} fill className="object-cover" />
+                                                                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                                                    <div className="w-12 h-12 text-gray-300" />
+                                                                </div>
                                                             )}
                                                         </motion.div>
                                                     </AnimatePresence>
@@ -369,7 +411,34 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                                                     </div>
                                                 )}
 
-                                                {drawerMedia.length > 1 && (
+                                                {/* Tabs (Rasm / Video) for Drawer */}
+                                                {drawerImages.length > 0 && hasVideo && (
+                                                    <div className="absolute top-4 left-0 right-0 z-20 flex justify-center">
+                                                        <div className="bg-black/40 backdrop-blur-md rounded-full p-1 flex gap-1 border border-white/10">
+                                                            <button
+                                                                onClick={() => setDrawerActiveTab('image')}
+                                                                className={cn(
+                                                                    "px-4 py-1.5 rounded-full text-xs font-bold transition-all",
+                                                                    drawerActiveTab === 'image' ? "bg-white text-black shadow-sm" : "text-white/80 hover:text-white"
+                                                                )}
+                                                            >
+                                                                Rasm
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setDrawerActiveTab('video')}
+                                                                className={cn(
+                                                                    "px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1",
+                                                                    drawerActiveTab === 'video' ? "bg-white text-black shadow-sm" : "text-white/80 hover:text-white"
+                                                                )}
+                                                            >
+                                                                <Play className="w-3 h-3" />
+                                                                Video
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {drawerImages.length > 1 && drawerActiveTab === 'image' && (
                                                     <>
                                                         <button
                                                             onClick={prevDrawerImage}
@@ -385,7 +454,7 @@ export function ProductClient({ restaurant, product, slug }: { restaurant: any, 
                                                         </button>
 
                                                         <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-                                                            {drawerMedia.map((_: any, i: number) => (
+                                                            {drawerImages.map((_: any, i: number) => (
                                                                 <div key={i} className={cn("h-1.5 rounded-full transition-all shadow-sm", i === drawerImageIndex ? "w-5 bg-white" : "w-2 bg-white/50")} />
                                                             ))}
                                                         </div>

@@ -70,7 +70,8 @@ export function ProductDetailDrawer({
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [modalImageLoading, setModalImageLoading] = useState(true);
-    const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [activeTab, setActiveTab] = useState<'image' | 'video'>('image');
     const [isSaving, setIsSaving] = useState(false);
     const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
@@ -92,7 +93,11 @@ export function ProductDetailDrawer({
             setZoomLevel(1);
             setPan({ x: 0, y: 0 });
             setModalImageLoading(true);
-            setCurrentMediaIndex(0);
+            setCurrentImageIndex(0);
+            
+            const hasImages = item.imageUrls?.length || item.imageUrl;
+            setActiveTab(hasImages ? 'image' : 'video');
+            
             setSelectedVariantId(item.variants?.[0]?.id || null);
 
             // Track Dish View
@@ -131,6 +136,7 @@ export function ProductDetailDrawer({
 
     /* ── Pointer gesture handlers ── */
     const handlePointerDown = (e: React.PointerEvent) => {
+        if (activeTab === 'video') return;
         e.currentTarget.setPointerCapture(e.pointerId);
         pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -170,19 +176,19 @@ export function ProductDetailDrawer({
         pointersRef.current.delete(e.pointerId);
         e.currentTarget.releasePointerCapture(e.pointerId);
 
-        // Swipe to change image (only at zoom=1)
-        if (isDraggingRef.current && pointersRef.current.size === 0 && zoomLevel === 1) {
+        // Swipe to change image (only at zoom=1 and activeTab is image)
+        if (isDraggingRef.current && pointersRef.current.size === 0 && zoomLevel === 1 && activeTab === 'image') {
             const dx = e.clientX - dragStartRef.current.x;
             const dy = e.clientY - dragStartRef.current.y;
             if (Math.abs(dx) > 40 && Math.abs(dy) < 100) {
-                const count = media.length;
+                const count = images.length;
                 if (dx > 0) {
-                    currentMediaIndex > 0
-                        ? (setCurrentMediaIndex(p => p - 1), setModalImageLoading(true))
+                    currentImageIndex > 0
+                        ? (setCurrentImageIndex(p => p - 1), setModalImageLoading(true))
                         : onPrev();
                 } else {
-                    currentMediaIndex < count - 1
-                        ? (setCurrentMediaIndex(p => p + 1), setModalImageLoading(true))
+                    currentImageIndex < count - 1
+                        ? (setCurrentImageIndex(p => p + 1), setModalImageLoading(true))
                         : onNext();
                 }
             }
@@ -199,13 +205,13 @@ export function ProductDetailDrawer({
 
     /* ── Save / download image ── */
     const handleSaveImage = async () => {
-        if (!item || isSaving) return;
-        const currentMedia = media[currentMediaIndex];
-        if (!currentMedia || currentMedia.type !== 'image') return;
+        if (!item || isSaving || activeTab !== 'image') return;
+        const currentImageUrl = images[currentImageIndex];
+        if (!currentImageUrl) return;
 
         setIsSaving(true);
         try {
-            const src = currentMedia.url;
+            const src = currentImageUrl;
             const res = await fetch(src);
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
@@ -215,7 +221,7 @@ export function ProductDetailDrawer({
             a.click();
             URL.revokeObjectURL(url);
         } catch {
-            const src = currentMedia.url;
+            const src = currentImageUrl;
             window.open(src, "_blank");
         } finally {
             setIsSaving(false);
@@ -224,18 +230,15 @@ export function ProductDetailDrawer({
 
     if (!item) return null;
 
-    const media = [
-        ...(item.videoUrl ? [{ type: 'video', url: item.videoUrl } as const] : []),
-        ...(item.imageUrls && item.imageUrls.length > 0 
-            ? item.imageUrls.map(url => ({ type: 'image', url } as const))
-            : item.imageUrl 
-                ? [{ type: 'image', url: item.imageUrl } as const]
-                : [])
-    ];
-
-    const currentMedia = media[currentMediaIndex] || { type: 'image', url: item.imageUrl || "" };
-    const imageSrc = currentMedia.type === 'image' ? optimizeImage(currentMedia.url, 1200) : "";
-    const hasMultipleMedia = media.length > 1;
+    const hasVideo = !!item.videoUrl;
+    const images = item.imageUrls && item.imageUrls.length > 0 
+        ? item.imageUrls 
+        : item.imageUrl ? [item.imageUrl] : [];
+    const hasImages = images.length > 0;
+    
+    const currentImageUrl = images[currentImageIndex] || "";
+    const imageSrc = currentImageUrl ? optimizeImage(currentImageUrl, 1200) : "";
+    const hasMultipleImages = images.length > 1;
 
     return (
         <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()} shouldScaleBackground={false}>
@@ -270,7 +273,7 @@ export function ProductDetailDrawer({
                 </button>
 
                 {/* Save image */}
-                {currentMedia.type === 'image' && (
+                {activeTab === 'image' && hasImages && (
                     <button
                         onClick={handleSaveImage}
                         disabled={isSaving}
@@ -279,6 +282,33 @@ export function ProductDetailDrawer({
                     >
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     </button>
+                )}
+
+                {/* Tabs (Rasm / Video) */}
+                {hasImages && hasVideo && (
+                    <div className="absolute top-4 left-0 right-0 z-[60] flex justify-center pointer-events-none">
+                        <div className="bg-black/50 backdrop-blur-xl rounded-full p-1.5 flex gap-1 border border-white/20 shadow-2xl pointer-events-auto">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setActiveTab('image'); }}
+                                className={cn(
+                                    "px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all",
+                                    activeTab === 'image' ? "bg-white text-black shadow-lg" : "text-white/80 hover:text-white hover:bg-white/10"
+                                )}
+                            >
+                                Rasm
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setActiveTab('video'); }}
+                                className={cn(
+                                    "px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
+                                    activeTab === 'video' ? "bg-white text-black shadow-lg" : "text-white/80 hover:text-white hover:bg-white/10"
+                                )}
+                            >
+                                <Play className={cn("w-3.5 h-3.5", activeTab === 'video' ? "fill-black" : "fill-transparent")} />
+                                Video
+                            </button>
+                        </div>
+                    </div>
                 )}
 
                 {/* Admin actions */}
@@ -317,7 +347,7 @@ export function ProductDetailDrawer({
                     data-vaul-no-drag
                 >
                     {/* Loading spinner */}
-                    {modalImageLoading && (
+                    {modalImageLoading && activeTab === 'image' && (
                         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
                             <Loader2 className="h-10 w-10 animate-spin text-white/40" />
                         </div>
@@ -326,28 +356,28 @@ export function ProductDetailDrawer({
                     {/* Zoom transform wrapper */}
                     <div
                         className="relative w-full h-full transition-transform duration-100 ease-linear origin-center will-change-transform"
-                        style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoomLevel})` }}
+                        style={{ transform: activeTab === 'image' ? `translate(${pan.x}px, ${pan.y}px) scale(${zoomLevel})` : undefined }}
                     >
                         <AnimatePresence mode="wait">
                             <motion.div
-                                key={currentMediaIndex}
+                                key={`${activeTab}-${currentImageIndex}`}
                                 initial={{ opacity: 0, scale: 0.96 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 1.04 }}
                                 transition={{ duration: 0.28 }}
                                 className="relative w-full h-full"
                             >
-                                {currentMedia.type === 'video' ? (
+                                {activeTab === 'video' && item.videoUrl ? (
                                     <div className="w-full h-full bg-black flex items-center justify-center">
                                         <iframe
-                                            src={getKinescopeEmbedUrl(currentMedia.url)}
-                                            className="w-full h-full"
+                                            src={getKinescopeEmbedUrl(item.videoUrl)}
+                                            className="w-full h-full pointer-events-auto"
                                             allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;"
                                             frameBorder="0"
                                             allowFullScreen
                                         />
                                     </div>
-                                ) : (
+                                ) : hasImages ? (
                                     <Image
                                         src={imageSrc}
                                         alt={getLocalizedName(item, language)}
@@ -358,37 +388,43 @@ export function ProductDetailDrawer({
                                         onLoad={handleModalImageLoad}
                                         draggable={false}
                                     />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-white/50">
+                                        <Box className="w-16 h-16 opacity-50" />
+                                    </div>
                                 )}
                             </motion.div>
                         </AnimatePresence>
                     </div>
 
                     {/* Pagination dots */}
-                    {hasMultipleMedia && (
-                        <div className="absolute bottom-3 left-0 right-0 z-20 flex justify-center gap-1.5 pointer-events-none">
-                            {media.map((_, i) => (
+                    {hasMultipleImages && activeTab === 'image' && (
+                        <div className="absolute bottom-16 left-0 right-0 z-20 flex justify-center gap-1.5 pointer-events-none">
+                            {images.map((_, i) => (
                                 <div
                                     key={i}
                                     className={cn(
                                         "h-1 rounded-full transition-all duration-300",
-                                        currentMediaIndex === i ? "w-6 bg-white shadow-lg" : "w-1.5 bg-white/30"
+                                        currentImageIndex === i ? "w-6 bg-white shadow-lg" : "w-1.5 bg-white/30"
                                     )}
                                 />
                             ))}
                         </div>
                     )}
 
-                    {/* Prev/Next arrows (multi-media) */}
-                    {hasMultipleMedia && zoomLevel === 1 && (
+
+
+                    {/* Prev/Next arrows (multi-images) */}
+                    {hasMultipleImages && zoomLevel === 1 && activeTab === 'image' && (
                         <>
                             <button
-                                onClick={() => { if (currentMediaIndex > 0) { setCurrentMediaIndex(p => p - 1); setModalImageLoading(true); } else onPrev(); }}
+                                onClick={(e) => { e.stopPropagation(); if (currentImageIndex > 0) { setCurrentImageIndex(p => p - 1); setModalImageLoading(true); } else onPrev(); }}
                                 className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/50 transition-colors"
                             >
                                 <ChevronLeft className="h-5 w-5" />
                             </button>
                             <button
-                                onClick={() => { const c = media.length; if (currentMediaIndex < c - 1) { setCurrentMediaIndex(p => p + 1); setModalImageLoading(true); } else onNext(); }}
+                                onClick={(e) => { e.stopPropagation(); const c = images.length; if (currentImageIndex < c - 1) { setCurrentImageIndex(p => p + 1); setModalImageLoading(true); } else onNext(); }}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/50 transition-colors"
                             >
                                 <ChevronRight className="h-5 w-5" />
@@ -397,7 +433,8 @@ export function ProductDetailDrawer({
                     )}
 
                     {/* Zoom controls — bottom right */}
-                    <div className="absolute bottom-3 right-3 z-20 flex items-center gap-0.5 bg-black/40 backdrop-blur-xl px-1.5 py-1 rounded-full border border-white/10">
+                    {activeTab === 'image' && (
+                        <div className="absolute top-4 right-28 z-20 flex items-center gap-0.5 bg-black/40 backdrop-blur-xl px-1.5 py-1 rounded-full border border-white/10">
                         <button
                             onClick={() => { setZoomLevel(p => Math.max(0.5, p - 0.5)); }}
                             className="h-7 w-7 rounded-full text-white hover:bg-white/20 flex items-center justify-center transition-colors"
@@ -420,6 +457,7 @@ export function ProductDetailDrawer({
                             <ZoomIn className="h-3.5 w-3.5" />
                         </button>
                     </div>
+                    )}
                 </div>
 
                 {/* ══ INFO PANEL — fixed bottom, blurred glass, animates up as content grows ══ */}
